@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
      "start": "node index.js",
-     "postinstall": "playwright install chromium",
+     "postinstall": "node node_modules/playwright/cli.js install chromium",
      "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
