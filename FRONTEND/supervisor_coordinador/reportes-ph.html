@@ -213,7 +213,7 @@
       try {
         ocultarMensaje()
 
-        const res = await fetch('http://localhost:3000/reportes-ph')
+        const res = await fetch('/reportes-ph')
         const data = await res.json()
 
         if (!res.ok || !data.ok) {

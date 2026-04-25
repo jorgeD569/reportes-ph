@@ -391,7 +391,7 @@ async function cargarOpcionesEquipos() {
   selectWika.innerHTML = '<option value="">Seleccionar WIKA</option>'
 
   try {
-    const res = await fetch('http://localhost:3000/activos-operador')
+    const res = await fetch('/activos-operador')
     const data = await res.json()
 
     if (!res.ok || !data.ok) {
@@ -662,7 +662,7 @@ function actualizarWika() {
           foto_2_base64
         }
 
-        const res = await fetch('http://localhost:3000/guardar-parte', {
+        const res = await fetch('/guardar-parte', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
