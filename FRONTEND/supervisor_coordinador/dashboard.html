@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinador | Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img
+          src="https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/logos/logo1.png"
+          alt="Logo empresa"
+          class="sidebar-logo"
+        >
+        <div class="sidebar-brand-text">
+          <strong>Kompass</strong>
+          <span>Panel coordinador</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item active">
+          <span>Dashboard</span>
+        </a>
+
+        <div class="nav-group">
+  <button class="nav-toggle" type="button">
+    <span>Reportes de PH</span>
+    <span class="arrow">⌄</span>
+  </button>
+  <div class="submenu">
+    <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
+    <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
+  </div>
+</div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Certificaciones</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Unidades de torque y PH</a>
+            <a href="#" class="submenu-item">Líneas y accesorios</a>
+            <a href="#" class="submenu-item">WIKAs</a>
+            <a href="#" class="submenu-item">Elementos de seguridad</a>
+            <a href="#" class="submenu-item">Piletas</a>
+            <a href="#" class="submenu-item">A vencer / vencidas</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de servicio</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Nuevo reporte</a>
+            <a href="#" class="submenu-item">Registros cargados</a>
+            <a href="#" class="submenu-item">Pendientes de revisión</a>
+          </div>
+        </div>
+
+        <a href="#" class="nav-item">
+          <span>Inventario</span>
+        </a>
+
+        <a href="#" class="nav-item">
+          <span>Paneles</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        © 2026 Kompass
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Panel principal de coordinación</p>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="dashboard-grid">
+  <div class="info-card">
+    <span class="info-label">Reportes PH pendientes</span>
+    <strong>0</strong>
+  </div>
+
+  <div class="info-card">
+    <span class="info-label">Reportes PH cerrados</span>
+    <strong>0</strong>
+  </div>
+
+  <div class="info-card">
+    <span class="info-label">Certificaciones por vencer</span>
+    <strong>0</strong>
+  </div>
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <div>
+      <h2>Bienvenido al panel coordinador</h2>
+      <p>Desde aquí vas a poder acceder a los distintos módulos del sistema.</p>
+    </div>
+  </div>
+
+  <div class="quick-links">
+    <a href="reportes-ph.html?estado=pendiente" class="quick-link-card">
+  <h3>Reportes de PH</h3>
+  <p>Ver registros pendientes y cerrados.</p>
+</a>
+
+    <a href="#" class="quick-link-card">
+      <h3>Certificaciones</h3>
+      <p>Controlar equipos, líneas, WIKAs y vencimientos.</p>
+    </a>
+
+    <a href="#" class="quick-link-card">
+      <h3>Reportes de servicio</h3>
+      <p>Crear, revisar y corregir reportes operativos.</p>
+    </a>
+
+    <a href="#" class="quick-link-card">
+      <h3>Inventario</h3>
+      <p>Consultar y organizar materiales y equipamiento.</p>
+    </a>
+
+    <a href="#" class="quick-link-card">
+      <h3>Paneles</h3>
+      <p>Módulo reservado para el servicio de paneles.</p>
+    </a>
+  </div>
+</section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.nav-toggle').forEach(button => {
+      button.addEventListener('click', () => {
+        const group = button.parentElement
+        group.classList.toggle('open')
+      })
+    })
+  </script>
+</body>
+</html>

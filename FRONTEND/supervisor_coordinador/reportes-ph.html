@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinador | Reportes PH</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img
+          src="https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/logos/logo1.png"
+          alt="Logo empresa"
+          class="sidebar-logo"
+        >
+        <div class="sidebar-brand-text">
+          <strong>Kompass</strong>
+          <span>Panel coordinador</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+
+        <a href="dashboard.html" class="nav-item">
+         <span>Dashboard</span>
+        </a>
+
+        <div class="nav-group open">
+          <button class="nav-toggle active" type="button">
+            <span>Reportes de PH</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="reportes-ph.html?estado=pendiente" class="submenu-item" id="submenu-pendientes">Registros pendientes</a>
+            <a href="reportes-ph.html?estado=cerrado" class="submenu-item" id="submenu-cerrados">Registros cerrados</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Certificaciones</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Unidades de torque y PH</a>
+            <a href="#" class="submenu-item">Líneas y accesorios</a>
+            <a href="#" class="submenu-item">WIKAs</a>
+            <a href="#" class="submenu-item">Elementos de seguridad</a>
+            <a href="#" class="submenu-item">Piletas</a>
+            <a href="#" class="submenu-item">A vencer / vencidas</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de servicio</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Nuevo reporte</a>
+            <a href="#" class="submenu-item">Registros cargados</a>
+            <a href="#" class="submenu-item">Pendientes de revisión</a>
+          </div>
+        </div>
+
+        <a href="#" class="nav-item">
+          <span>Inventario</span>
+        </a>
+
+        <a href="#" class="nav-item">
+          <span>Paneles</span>
+        </a>
+
+      </nav>
+
+      <div class="sidebar-footer">
+        © 2026 Kompass
+      </div>
+    </aside>
+
+    <div class="main-area">
+
+      <header class="topbar">
+        <div>
+          <h1>Reportes de PH</h1>
+          <p>Listado de reportes cargados</p>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Listado de reportes</h2>
+              <p>Buscá por número de reporte, pozo o cliente.</p>
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <input id="buscador" type="text" placeholder="Buscar por reporte, pozo o cliente">
+          </div>
+
+          <div id="mensaje" class="message"></div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Reporte N°</th>
+                  <th>Fecha</th>
+                  <th>Cliente</th>
+                  <th>Pozo</th>
+                  <th>Elemento</th>
+                  <th>Estado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-reportes">
+                <tr>
+                  <td colspan="7">Cargando reportes...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="footer">
+          Sistema desarrollado por <strong>TuEmpresa</strong>
+        </footer>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    let reportes = []
+
+    const params = new URLSearchParams(window.location.search)
+    const estadoFiltro = params.get('estado')
+    
+    function formatearFecha(fecha) {
+    if (!fecha) return ''
+
+    const f = new Date(fecha)
+
+    const dia = String(f.getDate()).padStart(2, '0')
+    const mes = String(f.getMonth() + 1).padStart(2, '0')
+    const anio = f.getFullYear()
+
+    return `${dia}/${mes}/${anio}`
+  }
+
+    function mostrarMensaje(texto, tipo = 'error') {
+      const mensaje = document.getElementById('mensaje')
+      mensaje.textContent = texto
+      mensaje.className = `message ${tipo}`
+      mensaje.style.display = 'block'
+    }
+
+    function ocultarMensaje() {
+      const mensaje = document.getElementById('mensaje')
+      mensaje.style.display = 'none'
+    }
+
+    function renderizarTabla(items) {
+      const tbody = document.getElementById('tabla-reportes')
+
+      if (!items.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">No se encontraron reportes.</td>
+          </tr>
+        `
+        return
+      }
+
+      tbody.innerHTML = items.map(item => `
+        <tr>
+          <td>${item.reporte_numero || ''}</td>
+          <td>${formatearFecha(item.fecha)}</td>
+          <td>${item.cliente || ''}</td>
+          <td>${item.pozo || ''}</td>
+          <td>${item.elemento_ensayar || ''}</td>
+          <td><span class="estado">${item.estado || 'Pendiente'}</span></td>
+          <td>
+            <button class="btn-ver" onclick="verDetalle('${item.id}')">Ver</button>
+          </td>
+        </tr>
+      `).join('')
+    }
+
+    function verDetalle(id) {
+      window.location.href = `reporte-detalle.html?id=${id}`
+    }
+
+    function filtrarReportes() {
+      const texto = document.getElementById('buscador').value.toLowerCase().trim()
+
+      const filtrados = reportes.filter(item =>
+        (item.reporte_numero || '').toLowerCase().includes(texto) ||
+        (item.pozo || '').toLowerCase().includes(texto) ||
+        (item.cliente || '').toLowerCase().includes(texto)
+      )
+
+      renderizarTabla(filtrados)
+    }
+
+    async function cargarReportes() {
+      try {
+        ocultarMensaje()
+
+        const res = await fetch('http://localhost:3000/reportes-ph')
+        const data = await res.json()
+
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || 'Error al cargar reportes')
+        }
+
+        reportes = data.reportes || []
+
+        let filtrados = reportes
+
+          if (estadoFiltro === 'pendiente') {
+          filtrados = reportes.filter(item =>
+          (item.estado || '').toLowerCase().includes('pendiente')
+          )
+         } else if (estadoFiltro === 'cerrado') {
+           filtrados = reportes.filter(item =>
+             (item.estado || '').toLowerCase().includes('pdf generado')
+            )
+          }
+
+          renderizarTabla(filtrados)
+
+      } catch (error) {
+        console.error(error)
+        mostrarMensaje(error.message, 'error')
+      }
+    }
+
+    document.getElementById('buscador').addEventListener('input', filtrarReportes)
+
+    document.querySelectorAll('.nav-toggle').forEach(button => {
+      button.addEventListener('click', () => {
+        const group = button.parentElement
+        group.classList.toggle('open')
+      })
+    })
+     
+      if (estadoFiltro === 'pendiente') {
+      document.getElementById('submenu-pendientes')?.classList.add('active')
+      } else if (estadoFiltro === 'cerrado') {
+      document.getElementById('submenu-cerrados')?.classList.add('active')
+    }
+
+    cargarReportes()
+  </script>
+</body>
+</html>

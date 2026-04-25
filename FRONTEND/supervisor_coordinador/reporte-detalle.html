@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detalle de reporte PH</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <style>
+    :root {
+      --bg: #f7f8fa;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #0f172a;
+      --success: #15803d;
+      --warning: #b45309;
+      --danger: #b91c1c;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .topbar-actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      opacity: 0.95;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 24px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    .card h2 {
+      margin: 0 0 18px 0;
+      font-size: 20px;
+    }
+
+    .status-box {
+      margin-bottom: 16px;
+      padding: 14px 16px;
+      border-radius: 12px;
+      font-size: 14px;
+      border: 1px solid transparent;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    .status-box.info {
+      display: block;
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: #bfdbfe;
+    }
+
+    .status-box.success {
+      display: block;
+      background: #ecfdf5;
+      color: #166534;
+      border-color: #bbf7d0;
+    }
+
+    .status-box.warning {
+      display: block;
+      background: #fffbeb;
+      color: #92400e;
+      border-color: #fde68a;
+    }
+
+    .status-box.error {
+      display: block;
+      background: #fef2f2;
+      color: #991b1b;
+      border-color: #fecaca;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafafa;
+      min-height: 74px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+
+    .field-value {
+      font-size: 15px;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .upload-area {
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      padding: 18px;
+      background: #fafafa;
+    }
+
+    .upload-area input[type="file"] {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .preview-wrap {
+      margin-top: 16px;
+      display: none;
+    }
+
+    .preview-wrap.show {
+      display: block;
+    }
+
+    .preview-wrap img {
+      width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #fff;
+    }
+
+    .meta-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .meta-item {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fafafa;
+      font-size: 14px;
+    }
+
+    .pdf-link {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+    }
+
+    .pdf-link.show {
+      display: block;
+    }
+
+    .pdf-link a {
+      color: #166534;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .detail-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .page {
+        padding: 16px;
+      }
+
+      .topbar h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <div>
+        <h1>Detalle de reporte PH</h1>
+        <div class="muted">Carga de gráfico WIKA y generación de PDF final</div>
+      </div>
+
+      <div class="topbar-actions">
+        <a href="./reportes-ph.html" class="btn btn-secondary">Volver al listado</a>
+      </div>
+    </div>
+
+    <div id="globalMessage" class="status-box"></div>
+
+    <div class="layout">
+      <section class="card">
+        <h2>Datos del parte</h2>
+        <div id="detalleGrid" class="detail-grid"></div>
+      </section>
+
+      <aside class="card" id="sidebarCard">
+        <h2>WIKA + PDF</h2>
+
+        <div class="upload-area">
+          <label for="wikaFile"><strong>Seleccionar imagen WIKA</strong></label>
+          <input type="file" id="wikaFile" accept="image/*" />
+          <div class="small"></div>
+        </div>
+
+        <div id="previewWrap" class="preview-wrap">
+          <div class="small" style="margin-bottom:8px;">Vista previa</div>
+          <img id="previewImage" alt="Vista previa WIKA" />
+        </div>
+
+        <div class="meta-list">
+          <div class="meta-item">
+            <strong>Archivo seleccionado:</strong>
+            <div id="fileName" class="muted">Ninguno</div>
+          </div>
+          <div class="meta-item">
+            <strong>Estado WIKA:</strong>
+            <div id="wikaStatus" class="muted">Sin cargar</div>
+          </div>
+          <div class="meta-item">
+            <strong>Estado PDF:</strong>
+            <div id="pdfStatus" class="muted">No generado</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btnSubirWika" type="button" class="btn btn-primary">Subir WIKA</button>
+          <button id="btnGenerarPdf" type="button" class="btn btn-success">Generar PDF</button>
+        </div>
+
+        <div id="pdfLinkBox" class="pdf-link">
+          PDF generado:
+          <a id="pdfLink" href="#" target="_blank" rel="noopener noreferrer">Abrir PDF</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:3000';
+
+    const state = {
+      parteId: null,
+      parte: null,
+      selectedFile: null,
+      selectedBase64: null,
+      selectedMimeType: null,
+      selectedExtension: null,
+      wikaUploaded: false,
+      generatedPdfPath: null
+    };
+
+    const $globalMessage = document.getElementById('globalMessage');
+    const $detalleGrid = document.getElementById('detalleGrid');
+    const $wikaFile = document.getElementById('wikaFile');
+    const $btnSubirWika = document.getElementById('btnSubirWika');
+    const $btnGenerarPdf = document.getElementById('btnGenerarPdf');
+    const $previewWrap = document.getElementById('previewWrap');
+    const $previewImage = document.getElementById('previewImage');
+    const $fileName = document.getElementById('fileName');
+    const $wikaStatus = document.getElementById('wikaStatus');
+    const $pdfStatus = document.getElementById('pdfStatus');
+    const $pdfLinkBox = document.getElementById('pdfLinkBox');
+    const $pdfLink = document.getElementById('pdfLink');
+    const $sidebarCard = document.getElementById('sidebarCard');
+
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
+
+    function showMessage(text, type = 'info') {
+      $globalMessage.className = `status-box ${type}`;
+      $globalMessage.textContent = text;
+    }
+
+    function clearMessage() {
+      $globalMessage.className = 'status-box';
+      $globalMessage.textContent = '';
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        $sidebarCard.classList.add('loading');
+      } else {
+        $sidebarCard.classList.remove('loading');
+      }
+    }
+
+    function safeValue(value) {
+      if (value === null || value === undefined || value === '') {
+        return '<span class="muted">Sin dato</span>';
+      }
+      return String(value);
+    }
+
+    function formatDate(value) {
+      if (!value) return 'Sin dato';
+
+      const date = new Date(value);
+      if (isNaN(date.getTime())) return value;
+
+      return date.toLocaleString('es-AR');
+    }
+
+    function buildFields(parte) {
+      const esNegativa = parte.tipo_prueba === 'negativa';
+
+      const fieldsBase = [
+        { label: 'Número de reporte', value: parte.reporte_numero || parte.nro_reporte || parte.numero_reporte },
+        { label: 'Fecha', value: formatDate(parte.fecha || parte.created_at) },
+        { label: 'Pozo', value: parte.pozo },
+        { label: 'Cliente', value: parte.cliente },
+        { label: 'Tipo de prueba', value: parte.tipo_prueba || 'positiva' },
+        { label: 'Elemento a ensayar', value: parte.elemento_ensayar || parte.elemento_a_ensayar || parte.elemento }
+      ];
+
+      const fieldsEnsayo = esNegativa
+        ? [
+            { label: 'Presión entrampada', value: parte.presion_estabilizada },
+            { label: 'Incremento de presión', value: parte.hs_estabilizada },
+            { label: 'Presión testigo', value: parte.presion_final },
+            { label: 'Hs inicio', value: parte.hs_final },
+            { label: 'Presión final', value: parte.caida_presion },
+            { label: 'Hs final', value: parte.porcentaje_caida },
+            { label: '% de pérdida', value: parte.porcentaje_perdida }
+          ]
+        : [
+            { label: 'Presión de ensayo', value: parte.presion_ensayo || parte.presion },
+            { label: 'Tiempo de ensayo', value: parte.tiempo_ensayo || parte.tiempo },
+            { label: 'Resultado', value: parte.resultado_ensayo },
+            { label: 'Presión estabilizada', value: parte.presion_estabilizada },
+            { label: 'Hs estabilizada', value: parte.hs_estabilizada },
+            { label: 'Presión final', value: parte.presion_final },
+            { label: 'Hs final', value: parte.hs_final },
+            { label: 'Caída de presión', value: parte.caida_presion },
+            { label: '% de caída', value: parte.porcentaje_caida }
+          ];
+
+      const fieldsFinales = [
+        { label: 'Operador líder', value: parte.operador_lider || '' },
+        { label: 'Supervisor', value: parte.supervisor_operativo || '' },
+        { label: 'Empresa', value: parte.cliente },
+        { label: 'Equipo', value: parte.equipo },
+        { label: 'Observaciones', value: parte.observaciones || parte.detalle_ensayo, full: true },
+        { label: 'Path imagen WIKA', value: parte.wika_image_path, full: true },
+        { label: 'Path PDF', value: parte.reporte_pdf_path, full: true },
+        { label: 'Creado', value: formatDate(parte.created_at) },
+        { label: 'Actualizado', value: formatDate(parte.updated_at) }
+      ];
+
+      const fields = [
+        ...fieldsBase,
+        ...fieldsEnsayo,
+        ...fieldsFinales
+      ];
+
+      $detalleGrid.innerHTML = fields.map(field => `
+        <div class="field ${field.full ? 'full' : ''}">
+          <span class="field-label">${field.label}</span>
+          <div class="field-value">${safeValue(field.value)}</div>
+        </div>
+      `).join('');
+    }
+
+    function resolveResponseData(responseJson) {
+      if (!responseJson) return null;
+      if (responseJson.data) return responseJson.data;
+      if (responseJson.parte) return responseJson.parte;
+      if (responseJson.reporte) return responseJson.reporte;
+      return responseJson;
+    }
+
+    function getPozo(parte) {
+      return parte.pozo || 'sin-pozo';
+    }
+
+    function getElemento(parte) {
+      return parte.elemento_ensayar || parte.elemento_a_ensayar || parte.elemento || 'sin-elemento';
+    }
+
+    function getFechaForFile(parte) {
+      const raw = parte.fecha || parte.created_at || new Date().toISOString();
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return 'sin-fecha';
+
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function sanitizeForFileName(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9-_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+        .toLowerCase();
+    }
+
+    function buildWikaFileName(parte, extension = 'jpg') {
+      const fecha = sanitizeForFileName(getFechaForFile(parte));
+      const pozo = sanitizeForFileName(getPozo(parte));
+      const elemento = sanitizeForFileName(getElemento(parte));
+      return `${fecha}_${pozo}_${elemento}_wika.${extension}`;
+    }
+
+    async function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          const result = reader.result;
+
+          if (typeof result !== 'string') {
+            reject(new Error('No se pudo convertir el archivo a base64.'));
+            return;
+          }
+
+          const parts = result.split(',');
+
+          if (parts.length < 2) {
+            reject(new Error('Formato base64 inválido.'));
+            return;
+          }
+
+          resolve({
+            dataUrl: result,
+            base64: parts[1]
+          });
+        };
+
+        reader.onerror = () => reject(new Error('Error al leer el archivo.'));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function fetchJson(url, options = {}) {
+      console.log('FETCH ->', url, options);
+
+      const res = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {})
+        },
+        ...options
+      });
+
+      const contentType = res.headers.get('content-type') || '';
+      let data = null;
+
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { raw: text };
+        }
+      }
+
+      console.log('FETCH RESPONSE <-', res.status, data);
+
+      if (!res.ok) {
+        const message =
+          data?.error ||
+          data?.message ||
+          `Error HTTP ${res.status}`;
+        throw new Error(message);
+      }
+
+      return data;
+    }
+
+    async function loadDetalle() {
+      state.parteId = getQueryParam('id');
+
+      if (!state.parteId) {
+        showMessage('No se recibió el parámetro "id" en la URL.', 'error');
+        return;
+      }
+
+      try {
+        clearMessage();
+        showMessage('Cargando detalle del reporte...', 'info');
+
+        const response = await fetchJson(`${API_BASE}/reportes-ph/${encodeURIComponent(state.parteId)}`, {
+          method: 'GET'
+        });
+
+        const parte = resolveResponseData(response);
+
+        if (!parte || !parte.id) {
+          throw new Error('La respuesta del backend no contiene un reporte válido.');
+        }
+
+        state.parte = parte;
+        buildFields(parte);
+
+        if (parte.wika_image_path) {
+          state.wikaUploaded = true;
+          $wikaStatus.textContent = 'Imagen ya cargada';
+        } else {
+          $wikaStatus.textContent = 'Sin cargar';
+        }
+
+        if (parte.reporte_pdf_path) {
+          state.generatedPdfPath = parte.reporte_pdf_path;
+          $pdfStatus.textContent = 'PDF ya generado';
+          renderPdfLink(parte.reporte_pdf_path);
+        } else {
+          $pdfStatus.textContent = 'No generado';
+        }
+
+        showMessage('Detalle cargado correctamente.', 'success');
+      } catch (error) {
+        console.error(error);
+        showMessage(`No se pudo cargar el detalle.\n${error.message}`, 'error');
+      }
+    }
+
+    function renderPdfLink(pdfPath) {
+      if (!pdfPath) return;
+
+      let href = pdfPath;
+
+      if (!/^https?:\/\//i.test(pdfPath)) {
+        const supabaseUrl = 'https://ydydsdekktvvrafwajwi.supabase.co';
+        const bucketPdf = 'reportes';
+        href = `${supabaseUrl}/storage/v1/object/public/${bucketPdf}/${pdfPath}`;
+      }
+
+      $pdfLink.href = href;
+      $pdfLink.textContent = 'Abrir PDF generado';
+      $pdfLinkBox.classList.add('show');
+    }
+
+    $wikaFile.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+
+      state.selectedFile = null;
+      state.selectedBase64 = null;
+      state.selectedMimeType = null;
+      state.selectedExtension = null;
+
+      if (!file) {
+        $fileName.textContent = 'Ninguno';
+        $previewWrap.classList.remove('show');
+        showMessage('No se seleccionó ningún archivo.', 'warning');
+        return;
+      }
+
+      try {
+        clearMessage();
+
+        const extension = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const { dataUrl, base64 } = await fileToBase64(file);
+
+        state.selectedFile = file;
+        state.selectedBase64 = base64;
+        state.selectedMimeType = file.type || 'image/jpeg';
+        state.selectedExtension = extension;
+
+        $fileName.textContent = file.name;
+        $previewImage.src = dataUrl;
+        $previewWrap.classList.add('show');
+
+        showMessage('Imagen lista para subir.', 'success');
+      } catch (error) {
+        console.error(error);
+        showMessage(`No se pudo procesar la imagen.\n${error.message}`, 'error');
+      }
+    });
+
+    $btnSubirWika.addEventListener('click', async () => {
+      if (!state.parte || !state.parte.id) {
+        showMessage('No hay parte cargado.', 'error');
+        return;
+      }
+
+      if (!state.selectedBase64) {
+        showMessage('Primero debés seleccionar una imagen WIKA.', 'warning');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        showMessage('Subiendo imagen WIKA...', 'info');
+
+        const generatedFileName = buildWikaFileName(state.parte, state.selectedExtension || 'jpg');
+
+        const payload = {
+          parte_id: state.parte.id,
+          image_base64: state.selectedBase64,
+          file_name: generatedFileName,
+          mime_type: state.selectedMimeType
+        };
+
+        const response = await fetchJson(`${API_BASE}/subir-wika`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        const data = resolveResponseData(response) || response;
+
+        state.wikaUploaded = true;
+        $wikaStatus.textContent = 'Imagen cargada correctamente';
+
+        if (data?.path) {
+          state.parte.wika_image_path = data.path;
+        }
+
+        buildFields(state.parte);
+        showMessage('Imagen WIKA subida correctamente. Ya podés generar el PDF.', 'success');
+      } catch (error) {
+        console.error(error);
+        showMessage(`No se pudo subir la imagen WIKA.\n${error.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    $btnGenerarPdf.addEventListener('click', async () => {
+      if (!state.parte || !state.parte.id) {
+        showMessage('No hay parte cargado.', 'error');
+        return;
+      }
+
+      try {
+        setLoading(true);
+        showMessage('Generando PDF final...', 'info');
+
+        const payload = {
+          parte_id: state.parte.id
+        };
+
+        const response = await fetchJson(`${API_BASE}/generar-reporte`, {
+          method: 'POST',
+          body: JSON.stringify(payload)
+        });
+
+        const data = resolveResponseData(response) || response;
+
+        const pdfPath =
+          data.reporte_pdf_path ||
+          data.pdf_path ||
+          data.path ||
+          data.url;
+
+        if (!pdfPath) {
+          throw new Error('El backend no devolvió la ruta del PDF generado.');
+        }
+
+        state.generatedPdfPath = pdfPath;
+        state.parte.reporte_pdf_path = pdfPath;
+        $pdfStatus.textContent = 'PDF generado correctamente';
+        renderPdfLink(pdfPath);
+        buildFields(state.parte);
+
+        showMessage('PDF generado correctamente.', 'success');
+      } catch (error) {
+        console.error(error);
+        showMessage(`No se pudo generar el PDF.\n${error.message}`, 'error');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    loadDetalle();
+  </script>
+</body>
+</html>

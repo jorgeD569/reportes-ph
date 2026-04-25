@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinador | Activos</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img
+          src="https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/logos/logo1.png"
+          alt="Logo empresa"
+          class="sidebar-logo"
+        >
+        <div class="sidebar-brand-text">
+          <strong>Kompass</strong>
+          <span>Panel coordinador</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <span>Dashboard</span>
+        </a>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de PH</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
+            <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <button class="nav-toggle active" type="button">
+            <span>Certificaciones</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="activos.html?categoria=unidad_ph" class="submenu-item">Unidades de torque y PH</a>
+            <a href="activos.html?categoria=linea_accesorio" class="submenu-item">Líneas y accesorios</a>
+            <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
+            <a href="activos.html?categoria=elemento_seguridad" class="submenu-item">Elementos de seguridad</a>
+            <a href="activos.html?categoria=pileta" class="submenu-item">Piletas</a>
+            <a href="activos.html?filtro=vencimientos" class="submenu-item">A vencer / vencidas</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de servicio</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Nuevo reporte</a>
+            <a href="#" class="submenu-item">Registros cargados</a>
+            <a href="#" class="submenu-item">Pendientes de revisión</a>
+          </div>
+        </div>
+
+        <a href="#" class="nav-item">
+          <span>Inventario</span>
+        </a>
+
+        <a href="#" class="nav-item">
+          <span>Paneles</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        © 2026 Kompass
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1>Activos y certificaciones</h1>
+          <p>Gestión de equipos, vencimientos y certificados.</p>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Listado de activos</h2>
+              <p>Acá vas a poder consultar, editar y controlar vencimientos.</p>
+            </div>
+          </div>
+
+          <div id="mensaje" class="message"></div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th>N° Serie</th>
+                  <th>Marca</th>
+                  <th>Ubicación</th>
+                  <th>Asignado a</th>
+                  <th>Vencimiento</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-activos">
+                <tr>
+                  <td colspan="8">Cargando activos...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="footer">
+          Sistema desarrollado por <strong>Dabrowski J</strong>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    document.querySelectorAll('.nav-toggle').forEach(button => {
+      button.addEventListener('click', () => {
+        const group = button.parentElement
+        group.classList.toggle('open')
+      })
+    })
+  </script>
+</body>
+</html>
