@@ -275,7 +275,7 @@ app.post('/generar-reporte', async (req, res) => {
 
     if (data.reporte_pdf_path) {
     const { data: pdfUrlData } = supabase.storage
-    .from(BUCKET_PDF)
+    .from(process.env.BUCKET_PDF)
     .getPublicUrl(data.reporte_pdf_path)
 
   return res.json({
