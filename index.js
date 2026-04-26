@@ -273,6 +273,18 @@ app.post('/generar-reporte', async (req, res) => {
 
     if (error) throw error
 
+    if (data.reporte_pdf_path) {
+    const { data: pdfUrlData } = supabase.storage
+    .from(BUCKET_PDF)
+    .getPublicUrl(data.reporte_pdf_path)
+
+  return res.json({
+    message: 'PDF ya generado previamente',
+    reporte_pdf_path: data.reporte_pdf_path,
+    reporte_pdf_url: pdfUrlData?.publicUrl || ''
+  })
+}
+
     console.log(`Generando reporte para parte_id: ${parte_id}`)
 
     if (!data.wika_image_path) {
