@@ -152,8 +152,9 @@ body {
 }
 
 .submenu-item.active {
-  background: rgba(255, 255, 255, 0.1);
+  background-color: #1e293b;
   color: #fff;
+  font-weight: 600;
 }
 
 .sidebar-footer {

@@ -23,35 +23,40 @@
       </div>
 
       <nav class="sidebar-nav">
-        <a href="dashboard.html" class="nav-item active">
+        <a href="dashboard.html" class="nav-item">
           <span>Dashboard</span>
         </a>
 
         <div class="nav-group">
-  <button class="nav-toggle" type="button">
-    <span>Reportes de PH</span>
-    <span class="arrow">⌄</span>
-  </button>
-  <div class="submenu">
-    <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
-    <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
-  </div>
-</div>
-
-        <div class="nav-group">
           <button class="nav-toggle" type="button">
-            <span>Certificaciones</span>
+            <span>Reportes de PH</span>
             <span class="arrow">⌄</span>
           </button>
           <div class="submenu">
-            <a href="#" class="submenu-item">Unidades de torque y PH</a>
-            <a href="#" class="submenu-item">Líneas y accesorios</a>
-            <a href="#" class="submenu-item">WIKAs</a>
-            <a href="#" class="submenu-item">Elementos de seguridad</a>
-            <a href="#" class="submenu-item">Piletas</a>
-            <a href="#" class="submenu-item">A vencer / vencidas</a>
+            <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
+            <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
           </div>
         </div>
+
+       <div class="nav-group open">
+  <button class="nav-toggle active" type="button">
+    <span>Inventario</span>
+    <span class="arrow">⌄</span>
+  </button>
+
+  <div class="submenu">
+    <a href="activos.html" class="submenu-item">Todos los activos</a>
+    <a href="activos.html?categoria=unidad" class="submenu-item">Unidades</a>
+    <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
+    <a href="activos.html?categoria=linea" class="submenu-item">Líneas y accesorios</a>
+    <a href="activos.html?categoria=seguridad" class="submenu-item">Elementos de seguridad</a>
+    <a href="activos.html?categoria=otro" class="submenu-item">Otros</a>
+
+    <hr style="margin:10px 0;">
+
+    <a href="consumibles.html" class="submenu-item">Consumibles</a>
+  </div>
+</div>
 
         <div class="nav-group">
           <button class="nav-toggle" type="button">
@@ -64,10 +69,6 @@
             <a href="#" class="submenu-item">Pendientes de revisión</a>
           </div>
         </div>
-
-        <a href="#" class="nav-item">
-          <span>Inventario</span>
-        </a>
 
         <a href="#" class="nav-item">
           <span>Paneles</span>

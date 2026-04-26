@@ -96,16 +96,6 @@
           </div>
 
           <div>
-            <label for="caida_presion">Caída de presión</label>
-            <input id="caida_presion" type="text" readonly>
-          </div>
-
-          <div>
-            <label for="porcentaje_caida">% de caída</label>
-            <input id="porcentaje_caida" type="text" readonly>
-          </div>
-
-          <div>
             <label for="presion_estabilizada">Presión estabilizada</label>
             <input id="presion_estabilizada" type="text">
           </div>
@@ -123,6 +113,16 @@
           <div>
             <label for="hs_final">Hs final</label>
             <input id="hs_final" type="text">
+          </div>
+
+          <div>
+            <label for="caida_presion">Caída de presión</label>
+            <input id="caida_presion" type="text" readonly>
+          </div>
+
+          <div>
+            <label for="porcentaje_caida">% de caída</label>
+            <input id="porcentaje_caida" type="text" readonly>
           </div>
         </div>
       </div>
@@ -327,7 +327,11 @@
   <script>
     let parteIdGuardado = null
 
-    
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000'
+  : 'https://TU-API-DE-RENDER.onrender.com'
+
+
     const inputFoto1 = document.getElementById('foto_1')
     const inputFoto2 = document.getElementById('foto_2')
     const preview1 = document.getElementById('preview_1')
@@ -400,7 +404,7 @@ async function cargarOpcionesEquipos() {
   selectWika.innerHTML = '<option value="">Seleccionar WIKA</option>'
 
   try {
-    const res = await fetch('/activos-operador')
+    const res = await fetch(`${API_URL}/activos-operador`)
     const data = await res.json()
 
     if (!res.ok || !data.ok) {
@@ -412,7 +416,7 @@ async function cargarOpcionesEquipos() {
 
     UNIDADES.forEach((unidad, index) => {
       const option = document.createElement('option')
-      option.value = index
+      option.value = unidad.id
       option.textContent = unidad.descripcion || unidad.numero_serie || `Unidad ${index + 1}`
       selectUnidad.appendChild(option)
     })
@@ -431,7 +435,7 @@ async function cargarOpcionesEquipos() {
 }
 
     function actualizarUnidad() {
-  const idx = document.getElementById('equipo').value
+  const id = document.getElementById('equipo').value
   const serie = document.getElementById('numero_serie_unidad')
   const venc = document.getElementById('vencimiento_unidad')
 
@@ -441,13 +445,13 @@ async function cargarOpcionesEquipos() {
     return
   }
 
-  const unidad = UNIDADES[idx]
+  const unidad = UNIDADES.find(u => String(u.id) === String(id))
   serie.value = unidad.numero_serie || ''
   venc.value = formatearFecha(unidad.vencimiento)
 }
 
 function actualizarWika() {
-  const idx = document.getElementById('sensor_wika').value
+  const id = document.getElementById('sensor_wika').value
   const serie = document.getElementById('numero_serie_wika')
   const venc = document.getElementById('vencimiento_wika')
 
@@ -457,7 +461,7 @@ function actualizarWika() {
     return
   }
 
-  const wika = WIKAS[idx]
+  const wika = WIKAS.find(w => String(w.id) === String(id))
   serie.value = wika.numero_serie || ''
   venc.value = formatearFecha(wika.vencimiento)
 }    
@@ -671,7 +675,7 @@ function actualizarWika() {
           foto_2_base64
         }
 
-        const res = await fetch('/guardar-parte', {
+        const res = await fetch(`${API_URL}/guardar-parte`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

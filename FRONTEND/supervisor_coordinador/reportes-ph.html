@@ -23,36 +23,40 @@
       </div>
 
       <nav class="sidebar-nav">
-
         <a href="dashboard.html" class="nav-item">
-         <span>Dashboard</span>
+          <span>Dashboard</span>
         </a>
 
-        <div class="nav-group open">
-          <button class="nav-toggle active" type="button">
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
             <span>Reportes de PH</span>
             <span class="arrow">⌄</span>
           </button>
           <div class="submenu">
-            <a href="reportes-ph.html?estado=pendiente" class="submenu-item" id="submenu-pendientes">Registros pendientes</a>
-            <a href="reportes-ph.html?estado=cerrado" class="submenu-item" id="submenu-cerrados">Registros cerrados</a>
+            <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
+            <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
           </div>
         </div>
 
-        <div class="nav-group">
-          <button class="nav-toggle" type="button">
-            <span>Certificaciones</span>
-            <span class="arrow">⌄</span>
-          </button>
-          <div class="submenu">
-            <a href="#" class="submenu-item">Unidades de torque y PH</a>
-            <a href="#" class="submenu-item">Líneas y accesorios</a>
-            <a href="#" class="submenu-item">WIKAs</a>
-            <a href="#" class="submenu-item">Elementos de seguridad</a>
-            <a href="#" class="submenu-item">Piletas</a>
-            <a href="#" class="submenu-item">A vencer / vencidas</a>
-          </div>
-        </div>
+       <div class="nav-group">
+  <button class="nav-toggle" type="button">
+    <span>Inventario</span>
+    <span class="arrow">⌄</span>
+  </button>
+
+  <div class="submenu">
+    <a href="activos.html" class="submenu-item">Todos los activos</a>
+    <a href="activos.html?categoria=unidad" class="submenu-item">Unidades</a>
+    <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
+    <a href="activos.html?categoria=linea" class="submenu-item">Líneas y accesorios</a>
+    <a href="activos.html?categoria=seguridad" class="submenu-item">Elementos de seguridad</a>
+    <a href="activos.html?categoria=otro" class="submenu-item">Otros</a>
+
+    <hr style="margin:10px 0;">
+
+    <a href="consumibles.html" class="submenu-item">Consumibles</a>
+  </div>
+</div>
 
         <div class="nav-group">
           <button class="nav-toggle" type="button">
@@ -67,13 +71,8 @@
         </div>
 
         <a href="#" class="nav-item">
-          <span>Inventario</span>
-        </a>
-
-        <a href="#" class="nav-item">
           <span>Paneles</span>
         </a>
-
       </nav>
 
       <div class="sidebar-footer">
@@ -137,6 +136,12 @@
   </div>
 
   <script>
+
+    const API_URL =
+ window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+? 'http://localhost:3000'
+: 'https://reportes-ph.onrender.com'
+
     let reportes = []
 
     const params = new URLSearchParams(window.location.search)
@@ -213,7 +218,7 @@
       try {
         ocultarMensaje()
 
-        const res = await fetch('/reportes-ph')
+        const res = await fetch(`${API_URL}/reportes-ph`)
         const data = await res.json()
 
         if (!res.ok || !data.ok) {
@@ -251,13 +256,42 @@
       })
     })
      
-      if (estadoFiltro === 'pendiente') {
-      document.getElementById('submenu-pendientes')?.classList.add('active')
-      } else if (estadoFiltro === 'cerrado') {
-      document.getElementById('submenu-cerrados')?.classList.add('active')
-    }
 
     cargarReportes()
+
+    function marcarMenuActivo() {
+  const params = new URLSearchParams(window.location.search)
+  const estado = params.get('estado')
+
+  const links = document.querySelectorAll('.submenu-item')
+
+  links.forEach(link => {
+    const href = link.getAttribute('href')
+    if (!href) return
+
+    link.classList.remove('active')
+
+    if (estado && href.includes(`estado=${estado}`)) {
+      link.classList.add('active')
+    }
+  })
+}
+
+function abrirMenuActivo() {
+  const activo = document.querySelector('.submenu-item.active')
+
+  if (!activo) return
+
+  const navGroup = activo.closest('.nav-group')
+  const navToggle = navGroup?.querySelector('.nav-toggle')
+
+  if (navGroup) navGroup.classList.add('open')
+  if (navToggle) navToggle.classList.add('active')
+}
+marcarMenuActivo()
+abrirMenuActivo()
+cargarReportes()
+
   </script>
 </body>
 </html>

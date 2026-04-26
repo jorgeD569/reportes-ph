@@ -38,20 +38,25 @@
           </div>
         </div>
 
-        <div class="nav-group open">
-          <button class="nav-toggle active" type="button">
-            <span>Certificaciones</span>
-            <span class="arrow">⌄</span>
-          </button>
-          <div class="submenu">
-            <a href="activos.html?categoria=unidad_ph" class="submenu-item">Unidades de torque y PH</a>
-            <a href="activos.html?categoria=linea_accesorio" class="submenu-item">Líneas y accesorios</a>
-            <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
-            <a href="activos.html?categoria=elemento_seguridad" class="submenu-item">Elementos de seguridad</a>
-            <a href="activos.html?categoria=pileta" class="submenu-item">Piletas</a>
-            <a href="activos.html?filtro=vencimientos" class="submenu-item">A vencer / vencidas</a>
-          </div>
-        </div>
+       <div class="nav-group open">
+  <button class="nav-toggle active" type="button">
+    <span>Inventario</span>
+    <span class="arrow">⌄</span>
+  </button>
+
+  <div class="submenu">
+    <a href="activos.html" class="submenu-item">Todos los activos</a>
+    <a href="activos.html?categoria=unidad" class="submenu-item">Unidades</a>
+    <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
+    <a href="activos.html?categoria=linea" class="submenu-item">Líneas y accesorios</a>
+    <a href="activos.html?categoria=seguridad" class="submenu-item">Elementos de seguridad</a>
+    <a href="activos.html?categoria=otro" class="submenu-item">Otros</a>
+
+    <hr style="margin:10px 0;">
+
+    <a href="consumibles.html" class="submenu-item">Consumibles</a>
+  </div>
+</div>
 
         <div class="nav-group">
           <button class="nav-toggle" type="button">
@@ -64,10 +69,6 @@
             <a href="#" class="submenu-item">Pendientes de revisión</a>
           </div>
         </div>
-
-        <a href="#" class="nav-item">
-          <span>Inventario</span>
-        </a>
 
         <a href="#" class="nav-item">
           <span>Paneles</span>
@@ -129,12 +130,141 @@
   </div>
 
   <script>
-    document.querySelectorAll('.nav-toggle').forEach(button => {
-      button.addEventListener('click', () => {
-        const group = button.parentElement
-        group.classList.toggle('open')
-      })
+  const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+    ? 'http://localhost:3000'
+    : 'https://TU-API-DE-RENDER.onrender.com'
+
+  document.querySelectorAll('.nav-toggle').forEach(button => {
+    button.addEventListener('click', () => {
+      const group = button.parentElement
+      group.classList.toggle('open')
     })
-  </script>
+  })
+
+  function formatearFecha(fecha) {
+    if (!fecha) return ''
+
+    const partes = fecha.split('-')
+    if (partes.length !== 3) return fecha
+
+    const [anio, mes, dia] = partes
+    return `${dia}/${mes}/${anio}`
+  }
+
+  function mostrarMensaje(texto, tipo = 'success') {
+    const mensaje = document.getElementById('mensaje')
+    mensaje.textContent = texto
+    mensaje.className = `message ${tipo}`
+    mensaje.style.display = 'block'
+  }
+
+  function obtenerParametros() {
+    const params = new URLSearchParams(window.location.search)
+    return {
+      categoria: params.get('categoria'),
+      filtro: params.get('filtro')
+    }
+  }
+
+  async function cargarActivos() {
+    const tbody = document.getElementById('tabla-activos')
+    const { categoria, filtro } = obtenerParametros()
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8">Cargando activos...</td>
+      </tr>
+    `
+
+    try {
+      let url = `${API_URL}/activos`
+
+      if (categoria) {
+        url += `?categoria=${categoria}`
+      }
+
+      const res = await fetch(url)
+      const activos = await res.json()
+
+      if (!res.ok) {
+        throw new Error(activos.error || 'Error al cargar activos')
+      }
+
+      let lista = activos || []
+
+      if (filtro === 'vencimientos') {
+        const hoy = new Date()
+        const limite = new Date()
+        limite.setDate(hoy.getDate() + 30)
+
+        lista = lista.filter(activo => {
+          if (!activo.vencimiento) return false
+
+          const vencimiento = new Date(activo.vencimiento)
+          return vencimiento <= limite
+        })
+      }
+
+      if (lista.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8">No hay activos para mostrar.</td>
+          </tr>
+        `
+        return
+      }
+
+      tbody.innerHTML = lista.map(activo => `
+        <tr>
+          <td>${activo.descripcion || ''}</td>
+          <td>${activo.categoria || ''}</td>
+          <td>${activo.numero_serie || ''}</td>
+          <td>${activo.marca || ''}</td>
+          <td>${activo.ubicacion || ''}</td>
+          <td>${activo.asignado_a || ''}</td>
+          <td>${formatearFecha(activo.vencimiento)}</td>
+          <td>${activo.estado || ''}</td>
+        </tr>
+      `).join('')
+
+    } catch (error) {
+      console.error(error)
+      mostrarMensaje(error.message, 'error')
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="8">Error al cargar activos.</td>
+        </tr>
+      `
+    }
+  }
+
+  cargarActivos()
+
+  function marcarMenuActivo() {
+  const params = new URLSearchParams(window.location.search)
+  const categoria = params.get('categoria')
+
+  const links = document.querySelectorAll('.submenu-item')
+
+  links.forEach(link => {
+    const href = link.getAttribute('href')
+
+    if (!href) return
+
+    link.classList.remove('active')
+
+    if (!categoria && href === 'activos.html') {
+      link.classList.add('active')
+    }
+
+    if (categoria && href.includes(`categoria=${categoria}`)) {
+      link.classList.add('active')
+    }
+  })
+}
+
+marcarMenuActivo()
+</script>
 </body>
 </html>
