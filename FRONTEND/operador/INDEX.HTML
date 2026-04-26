@@ -381,7 +381,16 @@
     }
 
     let UNIDADES = []
-let WIKAS = []
+    let WIKAS = []
+    function formatearFecha(fecha) {
+  if (!fecha) return ''
+
+  const partes = fecha.split('-')
+  if (partes.length !== 3) return fecha
+
+  const [anio, mes, dia] = partes
+  return `${dia}/${mes}/${anio}`
+}
 
 async function cargarOpcionesEquipos() {
   const selectUnidad = document.getElementById('equipo')
@@ -434,7 +443,7 @@ async function cargarOpcionesEquipos() {
 
   const unidad = UNIDADES[idx]
   serie.value = unidad.numero_serie || ''
-  venc.value = unidad.vencimiento || ''
+  venc.value = formatearFecha(unidad.vencimiento)
 }
 
 function actualizarWika() {
@@ -450,7 +459,7 @@ function actualizarWika() {
 
   const wika = WIKAS[idx]
   serie.value = wika.numero_serie || ''
-  venc.value = wika.vencimiento || ''
+  venc.value = formatearFecha(wika.vencimiento)
 }    
 
     function validarCamposObligatorios() {
