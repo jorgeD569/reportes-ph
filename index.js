@@ -948,6 +948,118 @@ app.get('/activos', async (req, res) => {
   }
 })
 
+// =========================
+// ACTIVOS - CREAR
+// =========================
+app.post('/activos', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('activos')
+      .insert([req.body])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.json({ ok: true, activo: data })
+  } catch (error) {
+    console.error('Error creando activo:', error)
+    res.status(500).json({ ok: false, error: error.message })
+  }
+})
+
+// =========================
+// ACTIVOS - EDITAR
+// =========================
+app.put('/activos/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const { data, error } = await supabase
+      .from('activos')
+      .update({
+        ...req.body,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.json({ ok: true, activo: data })
+  } catch (error) {
+    console.error('Error editando activo:', error)
+    res.status(500).json({ ok: false, error: error.message })
+  }
+})
+
+// =========================
+// CONSUMIBLES - GET
+// =========================
+app.get('/consumibles', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('consumibles')
+      .select('*')
+      .eq('activo', true)
+      .order('descripcion', { ascending: true })
+
+    if (error) throw error
+
+    res.json(data)
+  } catch (error) {
+    console.error('Error obteniendo consumibles:', error)
+    res.status(500).json({ error: 'Error obteniendo consumibles' })
+  }
+})
+
+// =========================
+// CONSUMIBLES - CREAR
+// =========================
+app.post('/consumibles', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('consumibles')
+      .insert([req.body])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.json({ ok: true, consumible: data })
+  } catch (error) {
+    console.error('Error creando consumible:', error)
+    res.status(500).json({ ok: false, error: error.message })
+  }
+})
+
+// =========================
+// CONSUMIBLES - EDITAR
+// =========================
+app.put('/consumibles/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const { data, error } = await supabase
+      .from('consumibles')
+      .update({
+        ...req.body,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.json({ ok: true, consumible: data })
+  } catch (error) {
+    console.error('Error editando consumible:', error)
+    res.status(500).json({ ok: false, error: error.message })
+  }
+})
+
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
     if (browserInstance) await browserInstance.close()

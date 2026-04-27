@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinador | Gestión de inventario</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img src="https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/logos/logo1.png" alt="Logo empresa" class="sidebar-logo">
+        <div class="sidebar-brand-text">
+          <strong>Kompass</strong>
+          <span>Panel coordinador</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item"><span>Dashboard</span></a>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de PH</span><span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
+            <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <button class="nav-toggle active" type="button">
+            <span>Inventario</span><span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="activos.html" class="submenu-item">Todos los activos</a>
+            <a href="activos.html?categoria=unidad" class="submenu-item">Unidades</a>
+            <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
+            <a href="activos.html?categoria=linea" class="submenu-item">Líneas y accesorios</a>
+            <a href="activos.html?categoria=seguridad" class="submenu-item">Elementos de seguridad</a>
+            <a href="activos.html?categoria=otro" class="submenu-item">Otros</a>
+            <hr style="margin:10px 0;">
+            <a href="consumibles.html" class="submenu-item">Consumibles</a>
+            <a href="inventario-gestion.html" class="submenu-item active">Gestión de inventario</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de servicio</span><span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Nuevo reporte</a>
+            <a href="#" class="submenu-item">Registros cargados</a>
+            <a href="#" class="submenu-item">Pendientes de revisión</a>
+          </div>
+        </div>
+
+        <a href="#" class="nav-item"><span>Paneles</span></a>
+      </nav>
+
+      <div class="sidebar-footer">© 2026 Kompass</div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1>Gestión de inventario</h1>
+          <p>Carga y edición de activos y consumibles.</p>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <div id="mensaje" class="message"></div>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Nuevo activo</h2>
+              <p>Equipos, WIKAs, líneas, elementos de seguridad y otros activos.</p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label>Descripción</label>
+              <input id="activo_descripcion" type="text">
+            </div>
+
+            <div>
+              <label>Categoría</label>
+              <select id="activo_categoria">
+                <option value="unidad">Unidad</option>
+                <option value="wika">WIKA</option>
+                <option value="linea">Línea / Accesorio</option>
+                <option value="herramienta">Herramienta</option>
+                <option value="seguridad">Elemento de seguridad</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+
+            <div>
+              <label>N° Serie</label>
+              <input id="activo_numero_serie" type="text">
+            </div>
+
+            <div>
+              <label>Estado</label>
+              <select id="activo_estado">
+                <option value="operativo">Operativo</option>
+                <option value="fuera_de_servicio">Fuera de servicio</option>
+                <option value="vencido">Vencido</option>
+                <option value="en_reparacion">En reparación</option>
+              </select>
+            </div>
+
+            <div>
+              <label>Vencimiento</label>
+              <input id="activo_vencimiento" type="date">
+            </div>
+
+            <div>
+              <label>Marca</label>
+              <input id="activo_marca" type="text">
+            </div>
+
+            <div>
+              <label>Ubicación</label>
+              <input id="activo_ubicacion" type="text">
+            </div>
+
+            <div>
+              <label>Asignado a</label>
+              <input id="activo_asignado_a" type="text">
+            </div>
+
+            <div>
+              <label>URL certificado</label>
+              <input id="activo_certificado_url" type="text">
+            </div>
+
+            <div>
+              <label>Observaciones</label>
+              <input id="activo_observaciones" type="text">
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="button" onclick="guardarActivo()">Guardar activo</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Nuevo consumible</h2>
+              <p>Materiales de consumo, stock y cantidades disponibles.</p>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label>Descripción</label>
+              <input id="consumible_descripcion" type="text">
+            </div>
+
+            <div>
+              <label>Categoría</label>
+              <input id="consumible_categoria" type="text">
+            </div>
+
+            <div>
+              <label>Cantidad</label>
+              <input id="consumible_cantidad" type="number" step="1">
+            </div>
+
+            <div>
+              <label>Stock mínimo</label>
+              <input id="consumible_stock_minimo" type="number" step="1">
+            </div>
+
+            <div>
+              <label>Ubicación</label>
+              <input id="consumible_ubicacion" type="text">
+            </div>
+
+            <div>
+              <label>Observaciones</label>
+              <input id="consumible_observaciones" type="text">
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="button" onclick="guardarConsumible()">Guardar consumible</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Editar activos</h2>
+              <p>Modificá estado, ubicación, vencimiento, certificado y responsable.</p>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th>N° Serie</th>
+                  <th>Estado</th>
+                  <th>Ubicación</th>
+                  <th>Asignado a</th>
+                  <th>Vencimiento</th>
+                  <th>Certificado</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-activos"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Editar consumibles</h2>
+              <p>Actualizá cantidades, stock mínimo y ubicación.</p>
+            </div>
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th>Cantidad</th>
+                  <th>Stock mínimo</th>
+                  <th>Ubicación</th>
+                  <th>Observaciones</th>
+                  <th>Acción</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-consumibles"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="footer">
+          Sistema desarrollado por <strong>Dabrowski J</strong>
+        </footer>
+
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : 'https://reportes-ph.onrender.com'
+
+    document.querySelectorAll('.nav-toggle').forEach(button => {
+      button.addEventListener('click', () => {
+        button.parentElement.classList.toggle('open')
+      })
+    })
+
+    function mostrarMensaje(texto, tipo = 'success') {
+      const mensaje = document.getElementById('mensaje')
+      mensaje.textContent = texto
+      mensaje.className = `message ${tipo}`
+      mensaje.style.display = 'block'
+    }
+
+    function valor(id) {
+      return document.getElementById(id).value.trim()
+    }
+
+    async function guardarActivo() {
+      try {
+        const payload = {
+          descripcion: valor('activo_descripcion'),
+          categoria: valor('activo_categoria'),
+          numero_serie: valor('activo_numero_serie'),
+          estado: valor('activo_estado') || 'operativo',
+          certificado_url: valor('activo_certificado_url') || null,
+          vencimiento: valor('activo_vencimiento') || null,
+          marca: valor('activo_marca') || null,
+          ubicacion: valor('activo_ubicacion') || null,
+          asignado_a: valor('activo_asignado_a') || null,
+          observaciones: valor('activo_observaciones') || null,
+          activo: true
+        }
+
+        if (!payload.descripcion || !payload.numero_serie || !payload.categoria) {
+          mostrarMensaje('Completá descripción, categoría y número de serie.', 'error')
+          return
+        }
+
+        const res = await fetch(`${API_URL}/activos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al guardar activo')
+
+        mostrarMensaje('Activo guardado correctamente.', 'success')
+        cargarActivos()
+      } catch (error) {
+        mostrarMensaje(error.message, 'error')
+      }
+    }
+
+    async function guardarConsumible() {
+      try {
+        const payload = {
+          descripcion: valor('consumible_descripcion'),
+          categoria: valor('consumible_categoria') || null,
+          cantidad: Number(valor('consumible_cantidad') || 0),
+          stock_minimo: Number(valor('consumible_stock_minimo') || 0),
+          ubicacion: valor('consumible_ubicacion') || null,
+          observaciones: valor('consumible_observaciones') || null,
+          activo: true
+        }
+
+        if (!payload.descripcion) {
+          mostrarMensaje('Completá la descripción del consumible.', 'error')
+          return
+        }
+
+        const res = await fetch(`${API_URL}/consumibles`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al guardar consumible')
+
+        mostrarMensaje('Consumible guardado correctamente.', 'success')
+        cargarConsumibles()
+      } catch (error) {
+        mostrarMensaje(error.message, 'error')
+      }
+    }
+
+    async function cargarActivos() {
+      const tbody = document.getElementById('tabla-activos')
+      tbody.innerHTML = '<tr><td colspan="9">Cargando activos...</td></tr>'
+
+      const res = await fetch(`${API_URL}/activos`)
+      const activos = await res.json()
+
+      tbody.innerHTML = activos.map(a => `
+        <tr>
+          <td>${a.descripcion || ''}</td>
+          <td>${a.categoria || ''}</td>
+          <td>${a.numero_serie || ''}</td>
+          <td><input id="estado_${a.id}" value="${a.estado || ''}"></td>
+          <td><input id="ubicacion_${a.id}" value="${a.ubicacion || ''}"></td>
+          <td><input id="asignado_${a.id}" value="${a.asignado_a || ''}"></td>
+          <td><input id="vencimiento_${a.id}" type="date" value="${a.vencimiento || ''}"></td>
+          <td><input id="certificado_${a.id}" value="${a.certificado_url || ''}"></td>
+          <td>
+            <button class="btn-ver" onclick="actualizarActivo('${a.id}')">Guardar</button>
+          </td>
+        </tr>
+      `).join('')
+    }
+
+    async function actualizarActivo(id) {
+      try {
+        const payload = {
+          estado: valor(`estado_${id}`),
+          ubicacion: valor(`ubicacion_${id}`) || null,
+          asignado_a: valor(`asignado_${id}`) || null,
+          vencimiento: valor(`vencimiento_${id}`) || null,
+          certificado_url: valor(`certificado_${id}`) || null
+        }
+
+        const res = await fetch(`${API_URL}/activos/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al actualizar activo')
+
+        mostrarMensaje('Activo actualizado.', 'success')
+        cargarActivos()
+      } catch (error) {
+        mostrarMensaje(error.message, 'error')
+      }
+    }
+
+    async function cargarConsumibles() {
+      const tbody = document.getElementById('tabla-consumibles')
+      tbody.innerHTML = '<tr><td colspan="7">Cargando consumibles...</td></tr>'
+
+      const res = await fetch(`${API_URL}/consumibles`)
+      const consumibles = await res.json()
+
+      tbody.innerHTML = consumibles.map(c => `
+        <tr>
+          <td>${c.descripcion || ''}</td>
+          <td>${c.categoria || ''}</td>
+          <td><input id="cantidad_${c.id}" type="number" value="${c.cantidad || 0}"></td>
+          <td><input id="stock_${c.id}" type="number" value="${c.stock_minimo || 0}"></td>
+          <td><input id="ubicacion_c_${c.id}" value="${c.ubicacion || ''}"></td>
+          <td><input id="obs_c_${c.id}" value="${c.observaciones || ''}"></td>
+          <td>
+            <button class="btn-ver" onclick="actualizarConsumible('${c.id}')">Guardar</button>
+          </td>
+        </tr>
+      `).join('')
+    }
+
+    async function actualizarConsumible(id) {
+      try {
+        const payload = {
+          cantidad: Number(valor(`cantidad_${id}`) || 0),
+          stock_minimo: Number(valor(`stock_${id}`) || 0),
+          ubicacion: valor(`ubicacion_c_${id}`) || null,
+          observaciones: valor(`obs_c_${id}`) || null
+        }
+
+        const res = await fetch(`${API_URL}/consumibles/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al actualizar consumible')
+
+        mostrarMensaje('Consumible actualizado.', 'success')
+        cargarConsumibles()
+      } catch (error) {
+        mostrarMensaje(error.message, 'error')
+      }
+    }
+
+    cargarActivos()
+    cargarConsumibles()
+  </script>
+</body>
+</html>
