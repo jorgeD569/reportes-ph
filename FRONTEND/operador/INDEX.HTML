@@ -329,7 +329,7 @@
 
     const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:3000'
-  : 'https://TU-API-DE-RENDER.onrender.com'
+  : ''
 
 
     const inputFoto1 = document.getElementById('foto_1')
@@ -423,7 +423,7 @@ async function cargarOpcionesEquipos() {
 
     WIKAS.forEach((wika, index) => {
       const option = document.createElement('option')
-      option.value = index
+      option.value = wika.id
       option.textContent = wika.descripcion || wika.numero_serie || `WIKA ${index + 1}`
       selectWika.appendChild(option)
     })
@@ -434,18 +434,20 @@ async function cargarOpcionesEquipos() {
   }
 }
 
-    function actualizarUnidad() {
+function actualizarUnidad() {
   const id = document.getElementById('equipo').value
   const serie = document.getElementById('numero_serie_unidad')
   const venc = document.getElementById('vencimiento_unidad')
 
-  if (idx === '') {
+  if (id === '') {
     serie.value = ''
     venc.value = ''
     return
   }
 
   const unidad = UNIDADES.find(u => String(u.id) === String(id))
+  if (!unidad) return
+
   serie.value = unidad.numero_serie || ''
   venc.value = formatearFecha(unidad.vencimiento)
 }
@@ -455,16 +457,18 @@ function actualizarWika() {
   const serie = document.getElementById('numero_serie_wika')
   const venc = document.getElementById('vencimiento_wika')
 
-  if (idx === '') {
+  if (id === '') {
     serie.value = ''
     venc.value = ''
     return
   }
 
   const wika = WIKAS.find(w => String(w.id) === String(id))
+  if (!wika) return
+
   serie.value = wika.numero_serie || ''
   venc.value = formatearFecha(wika.vencimiento)
-}    
+}  
 
     function validarCamposObligatorios() {
       const esNegativa = tipo.value === 'negativa'
