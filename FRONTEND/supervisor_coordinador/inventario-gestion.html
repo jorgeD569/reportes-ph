@@ -199,7 +199,34 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card" id="login-edicion">
+  <div class="card-head">
+    <div>
+      <h2>Acceso a edición</h2>
+      <p>Ingresá usuario y contraseña para modificar activos y consumibles.</p>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <label>Usuario</label>
+      <input id="usuario_edicion" type="text">
+    </div>
+
+    <div>
+      <label>Contraseña</label>
+      <input id="password_edicion" type="password">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" type="button" onclick="desbloquearEdicion()">
+      Desbloquear edición
+    </button>
+  </div>
+</section>
+
+        <section class="card zona-restringida">
           <div class="card-head">
             <div>
               <h2>Editar activos</h2>
@@ -227,7 +254,7 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card zona-restringida">
           <div class="card-head">
             <div>
               <h2>Editar consumibles</h2>
@@ -376,6 +403,23 @@
         </tr>
       `).join('')
     }
+
+    function desbloquearEdicion() {
+  const usuario = document.getElementById('usuario_edicion').value.trim()
+  const password = document.getElementById('password_edicion').value.trim()
+
+  if (usuario === 'admin' && password === '1234') {
+    document.querySelectorAll('.zona-restringida').forEach(section => {
+      section.style.display = 'block'
+    })
+
+    document.getElementById('login-edicion').style.display = 'none'
+    mostrarMensaje('Edición desbloqueada correctamente.', 'success')
+    return
+  }
+
+  mostrarMensaje('Usuario o contraseña incorrectos.', 'error')
+}
 
     async function actualizarActivo(id) {
       try {
