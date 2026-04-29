@@ -474,3 +474,11 @@ td input {
     width: 100%;
   }
 }
+
+.zona-restringida {
+  display: none !important;
+}
+
+.zona-restringida.visible {
+  display: block !important;
+}

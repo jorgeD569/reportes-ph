@@ -404,13 +404,13 @@
       `).join('')
     }
 
-    function desbloquearEdicion() {
+   function desbloquearEdicion() {
   const usuario = document.getElementById('usuario_edicion').value.trim()
   const password = document.getElementById('password_edicion').value.trim()
 
   if (usuario === 'admin' && password === '1234') {
     document.querySelectorAll('.zona-restringida').forEach(section => {
-      section.style.display = 'block'
+      section.classList.add('visible')
     })
 
     document.getElementById('login-edicion').style.display = 'none'
