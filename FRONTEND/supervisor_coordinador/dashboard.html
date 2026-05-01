@@ -91,20 +91,40 @@
 
       <main class="content">
         <section class="dashboard-grid">
-  <div class="info-card">
+  <a href="reportes-ph.html?estado=pendiente" class="info-card">
     <span class="info-label">Reportes PH pendientes</span>
-    <strong>0</strong>
-  </div>
+    <strong id="phPendientes">0</strong>
+  </a>
 
-  <div class="info-card">
+  <a href="reportes-ph.html?estado=cerrado" class="info-card">
     <span class="info-label">Reportes PH cerrados</span>
-    <strong>0</strong>
-  </div>
+    <strong id="phCerrados">0</strong>
+  </a>
 
-  <div class="info-card">
-    <span class="info-label">Certificaciones por vencer</span>
-    <strong>0</strong>
-  </div>
+  <a href="activos.html?filtro=vencidos" class="info-card">
+    <span class="info-label">Activos vencidos</span>
+    <strong id="activosVencidos">0</strong>
+  </a>
+
+  <a href="activos.html?filtro=criticos" class="info-card">
+    <span class="info-label">Vencen en 7 días</span>
+    <strong id="activosCriticos">0</strong>
+  </a>
+
+  <a href="activos.html?filtro=vencimientos" class="info-card">
+    <span class="info-label">Vencen en 30 días</span>
+    <strong id="activosProximos">0</strong>
+  </a>
+
+  <a href="activos.html?filtro=fuera_servicio" class="info-card">
+    <span class="info-label">Fuera de servicio</span>
+    <strong id="fueraServicio">0</strong>
+  </a>
+
+  <a href="consumibles.html?filtro=stock_bajo" class="info-card">
+    <span class="info-label">Consumibles bajo stock</span>
+    <strong id="stockBajo">0</strong>
+  </a>
 </section>
 
 <section class="card">
@@ -147,12 +167,85 @@
   </div>
 
   <script>
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:3000'
+  : 'https://reportes-ph.onrender.com'
+  
     document.querySelectorAll('.nav-toggle').forEach(button => {
       button.addEventListener('click', () => {
         const group = button.parentElement
         group.classList.toggle('open')
       })
     })
+
+    function diasHastaVencimiento(fecha) {
+  if (!fecha) return null
+
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  const vencimiento = new Date(fecha)
+  vencimiento.setHours(0, 0, 0, 0)
+
+  return Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24))
+}
+
+async function cargarDashboard() {
+  try {
+    const [resReportes, resActivos, resConsumibles] = await Promise.all([
+      fetch(`${API_URL}/reportes-ph`),
+      fetch(`${API_URL}/activos`),
+      fetch(`${API_URL}/consumibles`)
+    ])
+
+    const reportesData = await resReportes.json()
+    const activos = await resActivos.json()
+    const consumibles = await resConsumibles.json()
+
+    const reportes = reportesData.reportes || []
+
+    document.getElementById('phPendientes').textContent =
+      reportes.filter(r => !r.reporte_pdf_path).length
+
+    document.getElementById('phCerrados').textContent =
+      reportes.filter(r => r.reporte_pdf_path).length
+
+    document.getElementById('activosVencidos').textContent =
+      activos.filter(a => {
+        const dias = diasHastaVencimiento(a.vencimiento)
+        return dias !== null && dias < 0
+      }).length
+
+    document.getElementById('activosCriticos').textContent =
+      activos.filter(a => {
+        const dias = diasHastaVencimiento(a.vencimiento)
+        return dias !== null && dias >= 0 && dias <= 7
+      }).length
+
+    document.getElementById('activosProximos').textContent =
+      activos.filter(a => {
+        const dias = diasHastaVencimiento(a.vencimiento)
+        return dias !== null && dias > 7 && dias <= 30
+      }).length
+
+    document.getElementById('fueraServicio').textContent =
+      activos.filter(a =>
+        a.estado === 'fuera_de_servicio' ||
+        a.estado === 'en_reparacion' ||
+        a.estado === 'vencido'
+      ).length
+
+    document.getElementById('stockBajo').textContent =
+      consumibles.filter(c =>
+        Number(c.cantidad || 0) <= Number(c.stock_minimo || 0)
+      ).length
+
+  } catch (error) {
+    console.error('Error cargando dashboard:', error)
+  }
+}
+
+cargarDashboard()
   </script>
 </body>
 </html>

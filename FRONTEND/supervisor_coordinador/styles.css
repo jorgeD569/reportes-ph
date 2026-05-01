@@ -1,6 +1,16 @@
+/* ===================================================== */
+/* RESET GENERAL */
+/* Aplica box-sizing a todo el sistema */
+/* ===================================================== */
+
 * {
   box-sizing: border-box;
 }
+
+/* ===================================================== */
+/* VARIABLES GLOBALES */
+/* Colores, sombras, bordes y radios reutilizables */
+/* ===================================================== */
 
 :root {
   --bg: #eef3f8;
@@ -22,6 +32,11 @@
   --radius-sm: 12px;
 }
 
+/* ===================================================== */
+/* BASE GENERAL */
+/* Fondo, tipografía y color principal del sistema */
+/* ===================================================== */
+
 body {
   margin: 0;
   font-family: Arial, sans-serif;
@@ -29,11 +44,31 @@ body {
   color: var(--text);
 }
 
+/* ===================================================== */
+/* LAYOUT PRINCIPAL */
+/* Estructura general: sidebar + contenido principal */
+/* ===================================================== */
+
 .layout {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 280px 1fr;
 }
+
+.main-area {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.content {
+  padding: 0 28px 28px;
+}
+
+/* ===================================================== */
+/* SIDEBAR */
+/* Menú lateral izquierdo, logo y pie del panel */
+/* ===================================================== */
 
 .sidebar {
   background: linear-gradient(180deg, var(--sidebar) 0%, #13283a 100%);
@@ -77,6 +112,19 @@ body {
   color: rgba(255, 255, 255, 0.65);
 }
 
+.sidebar-footer {
+  padding: 18px 10px 4px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 18px;
+}
+
+/* ===================================================== */
+/* NAVEGACIÓN LATERAL */
+/* Botones del menú, submenús, estados activos y hover */
+/* ===================================================== */
+
 .sidebar-nav {
   display: flex;
   flex-direction: column;
@@ -116,7 +164,11 @@ body {
 
 .nav-item.active,
 .nav-toggle.active {
-  background: linear-gradient(135deg, rgba(242, 107, 29, 0.18), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(
+    135deg,
+    rgba(242, 107, 29, 0.18),
+    rgba(255, 255, 255, 0.08)
+  );
   color: #fff;
 }
 
@@ -157,19 +209,10 @@ body {
   font-weight: 600;
 }
 
-.sidebar-footer {
-  padding: 18px 10px 4px;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  margin-top: 18px;
-}
-
-.main-area {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+/* ===================================================== */
+/* TOPBAR */
+/* Encabezado superior de cada pantalla */
+/* ===================================================== */
 
 .topbar {
   display: flex;
@@ -191,9 +234,91 @@ body {
   font-size: 15px;
 }
 
-.content {
-  padding: 0 28px 28px;
+/* ===================================================== */
+/* CARDS GENERALES */
+/* Tarjetas blancas reutilizadas en todo el sistema */
+/* ===================================================== */
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  border: 1px solid rgba(216, 222, 230, 0.85);
 }
+
+.card + .card {
+  margin-top: 20px;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-head h2 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--primary);
+}
+
+.card-head p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ===================================================== */
+/* DASHBOARD - TARJETAS DE INDICADORES */
+/* Controla las cards superiores del dashboard:
+   PH pendientes, vencidos, críticos, stock bajo, etc. */
+/* ===================================================== */
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.info-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px;
+  border: 1px solid rgba(216, 222, 230, 0.85);
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.info-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08);
+}
+
+.info-card strong {
+  font-size: 34px;
+  color: var(--primary);
+}
+
+.info-label {
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+/* ===================================================== */
+/* DASHBOARD - TARJETAS ANTIGUAS */
+/* Se mantienen por compatibilidad si alguna pantalla usa summary */
+/* ===================================================== */
 
 .summary-grid {
   display: grid;
@@ -224,32 +349,50 @@ body {
   color: var(--primary);
 }
 
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 20px;
+/* ===================================================== */
+/* QUICK LINKS */
+/* Tarjetas de acceso rápido del dashboard */
+/* ===================================================== */
+
+.quick-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.quick-link-card {
+  display: block;
+  padding: 18px;
   border: 1px solid rgba(216, 222, 230, 0.85);
+  border-radius: 16px;
+  background: #ffffff;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s ease;
 }
 
-.card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
+.quick-link-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  border-color: #cbd5e1;
 }
 
-.card-head h2 {
-  margin: 0;
-  font-size: 20px;
+.quick-link-card h3 {
+  margin: 0 0 8px;
   color: var(--primary);
+  font-size: 18px;
 }
 
-.card-head p {
-  margin: 6px 0 0;
+.quick-link-card p {
+  margin: 0;
   color: var(--muted);
   font-size: 14px;
 }
+
+/* ===================================================== */
+/* BUSCADORES Y TOOLBARS */
+/* Barra de búsqueda en listados */
+/* ===================================================== */
 
 .toolbar {
   margin-bottom: 16px;
@@ -270,6 +413,11 @@ body {
   border-color: var(--primary);
   box-shadow: 0 0 0 4px rgba(12, 44, 64, 0.1);
 }
+
+/* ===================================================== */
+/* TABLAS */
+/* Listados de reportes, activos, consumibles, etc. */
+/* ===================================================== */
 
 .table-wrapper {
   overflow-x: auto;
@@ -304,6 +452,17 @@ tbody tr:hover {
   background: #f8fbff;
 }
 
+td input {
+  height: 36px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+/* ===================================================== */
+/* ESTADOS */
+/* Etiquetas visuales para estado de reportes o activos */
+/* ===================================================== */
+
 .estado {
   display: inline-block;
   padding: 7px 12px;
@@ -314,81 +473,44 @@ tbody tr:hover {
   font-weight: 700;
 }
 
+/* ===================================================== */
+/* BOTONES */
+/* Botones principales, secundarios y botones de tabla */
+/* ===================================================== */
+
+.btn,
+.btn-primary,
 .btn-ver {
   border: none;
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
-  color: white;
-  padding: 10px 14px;
-  border-radius: 10px;
+  color: #fff;
   cursor: pointer;
   font-weight: 700;
   transition: 0.2s ease;
 }
 
+.btn,
+.btn-primary {
+  padding: 12px 18px;
+  border-radius: 12px;
+}
+
+.btn-ver {
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+
+.btn:hover,
+.btn-primary:hover,
 .btn-ver:hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgba(12, 44, 64, 0.18);
 }
 
-.message {
-  display: none;
-  margin-bottom: 16px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  font-size: 14px;
-}
-
-.message.error {
-  display: block;
-  background: var(--error-bg);
-  color: var(--error-text);
-}
-
-.message.success {
-  display: block;
-  background: var(--success-bg);
-  color: var(--success-text);
-}
-
-.footer {
-  text-align: center;
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 28px;
-  padding: 12px 8px 4px;
-}
-
-.footer strong {
-  color: var(--primary);
-}
-
-@media (max-width: 1100px) {
-  .layout {
-    grid-template-columns: 240px 1fr;
-  }
-
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 820px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
-
-  .sidebar {
-    padding-bottom: 10px;
-  }
-
-  .topbar,
-  .content {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-}
-
-/* ===== Formularios de gestión de inventario ===== */
+/* ===================================================== */
+/* FORMULARIOS */
+/* Inputs, selects, textareas y grillas de carga */
+/* ===================================================== */
 
 .grid-2 {
   display: grid;
@@ -418,6 +540,12 @@ textarea {
   transition: 0.2s ease;
 }
 
+textarea {
+  min-height: 90px;
+  padding-top: 10px;
+  resize: vertical;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
@@ -432,48 +560,35 @@ textarea:focus {
   justify-content: flex-end;
 }
 
-.btn,
-.btn-primary {
-  border: none;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 100%);
-  color: #fff;
-  padding: 12px 18px;
+/* ===================================================== */
+/* MENSAJES */
+/* Alertas de éxito y error dentro del sistema */
+/* ===================================================== */
+
+.message {
+  display: none;
+  margin-bottom: 16px;
+  padding: 12px 14px;
   border-radius: 12px;
-  cursor: pointer;
-  font-weight: 700;
-  transition: 0.2s ease;
+  font-size: 14px;
 }
 
-.btn:hover,
-.btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 18px rgba(12, 44, 64, 0.18);
+.message.error {
+  display: block;
+  background: var(--error-bg);
+  color: var(--error-text);
 }
 
-.card + .card {
-  margin-top: 20px;
+.message.success {
+  display: block;
+  background: var(--success-bg);
+  color: var(--success-text);
 }
 
-td input {
-  height: 36px;
-  border-radius: 10px;
-  font-size: 13px;
-}
-
-@media (max-width: 820px) {
-  .grid-2 {
-    grid-template-columns: 1fr;
-  }
-
-  .actions {
-    justify-content: stretch;
-  }
-
-  .btn,
-  .btn-primary {
-    width: 100%;
-  }
-}
+/* ===================================================== */
+/* ZONA RESTRINGIDA */
+/* Oculta/visualiza secciones protegidas con usuario y clave */
+/* ===================================================== */
 
 .zona-restringida {
   display: none !important;
@@ -483,15 +598,18 @@ td input {
   display: block !important;
 }
 
+/* ===================================================== */
+/* MODAL HISTORIAL */
+/* Popup que muestra movimientos del activo */
+/* ===================================================== */
+
 .modal-historial {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.45);
-
+  background: rgba(0, 0, 0, 0.45);
   display: none;
   align-items: center;
   justify-content: center;
-
   z-index: 9999;
 }
 
@@ -502,16 +620,12 @@ td input {
 .modal-historial-content {
   width: 95%;
   max-width: 900px;
-
   max-height: 85vh;
   overflow-y: auto;
-
   background: #fff;
   border-radius: 18px;
-
-  box-shadow: 0 20px 60px rgba(0,0,0,.25);
-
-  animation: modalFade .2s ease;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  animation: modalFade 0.2s ease;
 }
 
 @keyframes modalFade {
@@ -530,9 +644,7 @@ td input {
   display: flex;
   justify-content: space-between;
   align-items: center;
-
   padding: 18px 24px;
-
   border-bottom: 1px solid #e5e7eb;
 }
 
@@ -544,7 +656,6 @@ td input {
 .cerrar-modal {
   border: none;
   background: transparent;
-
   font-size: 24px;
   cursor: pointer;
 }
@@ -556,10 +667,8 @@ td input {
 .historial-item {
   border: 1px solid #e5e7eb;
   border-radius: 14px;
-
   padding: 16px;
   margin-bottom: 16px;
-
   background: #f9fafb;
 }
 
@@ -581,7 +690,7 @@ td input {
 
 .historial-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 10px;
 }
 
@@ -595,22 +704,24 @@ td input {
   color: #111827;
 }
 
+/* ===================================================== */
+/* SEMÁFORO DE VENCIMIENTOS */
+/* Colores para fechas de vencimiento de activos */
+/* ===================================================== */
+
 .vencimiento-box {
   border-radius: 10px;
   padding: 8px 10px;
-
   font-weight: 600;
   text-align: center;
-
   min-width: 110px;
 }
 
 .vencimiento-box small {
   display: block;
   margin-top: 4px;
-
   font-size: 11px;
-  opacity: .9;
+  opacity: 0.9;
 }
 
 .vencimiento-ok {
@@ -631,4 +742,70 @@ td input {
 .vencimiento-vencido {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* ===================================================== */
+/* FOOTER */
+/* Pie de página general del sistema */
+/* ===================================================== */
+
+.footer {
+  text-align: center;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 28px;
+  padding: 12px 8px 4px;
+}
+
+.footer strong {
+  color: var(--primary);
+}
+
+/* ===================================================== */
+/* RESPONSIVE TABLET */
+/* Ajustes para pantallas medianas */
+/* ===================================================== */
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 240px 1fr;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===================================================== */
+/* RESPONSIVE CELULAR */
+/* Ajustes para pantallas chicas */
+/* ===================================================== */
+
+@media (max-width: 820px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    padding-bottom: 10px;
+  }
+
+  .topbar,
+  .content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .btn,
+  .btn-primary {
+    width: 100%;
+  }
 }
