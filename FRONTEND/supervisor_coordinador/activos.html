@@ -167,6 +167,52 @@
     }
   }
 
+  function obtenerEstadoVencimiento(fecha) {
+
+  if (!fecha) {
+    return {
+      clase: 'vencimiento-normal',
+      texto: '-'
+    }
+  }
+
+  const hoy = new Date()
+  hoy.setHours(0,0,0,0)
+
+  const vencimiento = new Date(fecha)
+  vencimiento.setHours(0,0,0,0)
+
+  const diferencia = Math.ceil(
+    (vencimiento - hoy) / (1000 * 60 * 60 * 24)
+  )
+
+  if (diferencia < 0) {
+    return {
+      clase: 'vencimiento-vencido',
+      texto: `Vencido`
+    }
+  }
+
+  if (diferencia <= 7) {
+    return {
+      clase: 'vencimiento-critico',
+      texto: `${diferencia} días`
+    }
+  }
+
+  if (diferencia <= 30) {
+    return {
+      clase: 'vencimiento-proximo',
+      texto: `${diferencia} días`
+    }
+  }
+
+  return {
+    clase: 'vencimiento-ok',
+    texto: `${diferencia} días`
+  }
+}
+
   async function cargarActivos() {
     const tbody = document.getElementById('tabla-activos')
     const { categoria, filtro } = obtenerParametros()
@@ -215,18 +261,41 @@
         return
       }
 
-      tbody.innerHTML = lista.map(activo => `
-        <tr>
-          <td>${activo.descripcion || ''}</td>
-          <td>${activo.categoria || ''}</td>
-          <td>${activo.numero_serie || ''}</td>
-          <td>${activo.marca || ''}</td>
-          <td>${activo.ubicacion || ''}</td>
-          <td>${activo.asignado_a || ''}</td>
-          <td>${formatearFecha(activo.vencimiento)}</td>
-          <td>${activo.estado || ''}</td>
-        </tr>
-      `).join('')
+     tbody.innerHTML = lista.map(activo => {
+
+  const vencimientoInfo =
+    obtenerEstadoVencimiento(activo.vencimiento)
+
+  return `
+    <tr>
+      <td>${activo.descripcion || ''}</td>
+
+      <td>${activo.categoria || ''}</td>
+
+      <td>${activo.numero_serie || ''}</td>
+
+      <td>${activo.marca || ''}</td>
+
+      <td>${activo.ubicacion || ''}</td>
+
+      <td>${activo.asignado_a || ''}</td>
+
+      <td>
+        <div class="vencimiento-box ${vencimientoInfo.clase}">
+          <div>
+            ${formatearFecha(activo.vencimiento)}
+          </div>
+
+          <small>
+            ${vencimientoInfo.texto}
+          </small>
+        </div>
+      </td>
+
+      <td>${activo.estado || ''}</td>
+    </tr>
+  `
+}).join('')
 
     } catch (error) {
       console.error(error)

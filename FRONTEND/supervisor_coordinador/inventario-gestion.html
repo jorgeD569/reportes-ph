@@ -284,6 +284,23 @@
         <footer class="footer">
           Sistema desarrollado por <strong>Dabrowski J</strong>
         </footer>
+        
+        <div id="modalHistorial" class="modal-historial">
+  <div class="modal-historial-content">
+
+    <div class="modal-historial-header">
+      <h2 id="historialTitulo">Historial</h2>
+
+      <button class="cerrar-modal" onclick="cerrarModalHistorial()">
+        ✕
+      </button>
+    </div>
+
+    <div id="historialContenido" class="historial-body">
+    </div>
+
+  </div>
+</div>
 
       </main>
     </div>
@@ -451,46 +468,129 @@
       }
     }
 
-    async function verHistorialActivo(id, descripcionCodificada) {
+   async function verHistorialActivo(id, descripcionCodificada) {
+
   try {
+
     const descripcion = decodeURIComponent(descripcionCodificada || '')
 
     const res = await fetch(`${API_URL}/activos/${id}/movimientos`)
     const data = await res.json()
 
-    console.log('Historial activo:', id, data)
-
     if (!res.ok || !data.ok) {
       throw new Error(data.error || 'Error al cargar historial')
     }
 
+    document.getElementById('historialTitulo').textContent =
+      `Historial - ${descripcion}`
+
+    const container = document.getElementById('historialContenido')
+
     if (!data.movimientos || data.movimientos.length === 0) {
-      alert(`Historial de ${descripcion}:\n\nSin movimientos registrados.`)
+
+      container.innerHTML = `
+        <div class="historial-item">
+          Sin movimientos registrados.
+        </div>
+      `
+
+      document
+        .getElementById('modalHistorial')
+        .classList.add('visible')
+
       return
     }
 
-    const texto = data.movimientos.map(m => {
-      const fecha = new Date(m.fecha).toLocaleString('es-AR')
+    container.innerHTML = data.movimientos.map(m => {
 
-      return [
-        `Fecha: ${fecha}`,
-        `Tipo: ${m.tipo_movimiento || ''}`,
-        `Descripción: ${m.descripcion || ''}`,
-        `Usuario: ${m.usuario || ''}`,
-        `Estado: ${m.estado_anterior || '-'} → ${m.estado_nuevo || '-'}`,
-        `Ubicación: ${m.ubicacion_anterior || '-'} → ${m.ubicacion_nueva || '-'}`,
-        `Asignado: ${m.asignado_anterior || '-'} → ${m.asignado_nuevo || '-'}`,
-        `Observaciones: ${m.observaciones || '-'}`,
-        `-------------------------`
-      ].join('\n')
-    }).join('\n')
+      const fecha = new Date(m.fecha)
+        .toLocaleString('es-AR')
 
-    alert(`Historial de ${descripcion}:\n\n${texto}`)
+      return `
+        <div class="historial-item">
+
+          <div class="historial-item-top">
+            <div class="historial-tipo">
+              ${m.tipo_movimiento || '-'}
+            </div>
+
+            <div class="historial-fecha">
+              ${fecha}
+            </div>
+          </div>
+
+          <div class="historial-grid">
+
+            <div>
+              <div class="historial-label">Descripción</div>
+              <div class="historial-value">
+                ${m.descripcion || '-'}
+              </div>
+            </div>
+
+            <div>
+              <div class="historial-label">Usuario</div>
+              <div class="historial-value">
+                ${m.usuario || '-'}
+              </div>
+            </div>
+
+            <div>
+              <div class="historial-label">Estado</div>
+              <div class="historial-value">
+                ${m.estado_anterior || '-'}
+                →
+                ${m.estado_nuevo || '-'}
+              </div>
+            </div>
+
+            <div>
+              <div class="historial-label">Ubicación</div>
+              <div class="historial-value">
+                ${m.ubicacion_anterior || '-'}
+                →
+                ${m.ubicacion_nueva || '-'}
+              </div>
+            </div>
+
+            <div>
+              <div class="historial-label">Asignado</div>
+              <div class="historial-value">
+                ${m.asignado_anterior || '-'}
+                →
+                ${m.asignado_nuevo || '-'}
+              </div>
+            </div>
+
+            <div>
+              <div class="historial-label">Observaciones</div>
+              <div class="historial-value">
+                ${m.observaciones || '-'}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      `
+    }).join('')
+
+    document
+      .getElementById('modalHistorial')
+      .classList.add('visible')
 
   } catch (error) {
+
     console.error(error)
+
     mostrarMensaje(error.message, 'error')
   }
+}
+
+function cerrarModalHistorial() {
+  document
+    .getElementById('modalHistorial')
+    .classList.remove('visible')
 }
 
     async function cargarConsumibles() {
