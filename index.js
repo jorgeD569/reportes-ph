@@ -69,6 +69,49 @@
     return `${dia}/${mes}/${anio}`
   }
 
+async function registrarMovimiento({
+  activo_id,
+  tipo_movimiento,
+  descripcion,
+  usuario = 'Sistema',
+
+  estado_anterior = null,
+  estado_nuevo = null,
+
+  ubicacion_anterior = null,
+  ubicacion_nueva = null,
+
+  asignado_anterior = null,
+  asignado_nuevo = null,
+
+  observaciones = null
+}) {
+
+  const { error } = await supabase
+    .from('movimientos_inventario')
+    .insert([{
+      activo_id,
+      tipo_movimiento,
+      descripcion,
+      usuario,
+
+      estado_anterior,
+      estado_nuevo,
+
+      ubicacion_anterior,
+      ubicacion_nueva,
+
+      asignado_anterior,
+      asignado_nuevo,
+
+      observaciones
+    }])
+
+  if (error) {
+    console.error('Error registrando movimiento:', error)
+  }
+}
+
   /**
    * POST /subir-wika
    */
@@ -952,7 +995,9 @@ app.get('/activos', async (req, res) => {
 // ACTIVOS - CREAR
 // =========================
 app.post('/activos', async (req, res) => {
+
   try {
+
     const { data, error } = await supabase
       .from('activos')
       .insert([req.body])
@@ -961,10 +1006,36 @@ app.post('/activos', async (req, res) => {
 
     if (error) throw error
 
-    res.json({ ok: true, activo: data })
+    // REGISTRAR MOVIMIENTO
+    await registrarMovimiento({
+      activo_id: data.id,
+
+      tipo_movimiento: 'creacion',
+
+      descripcion: 'Activo creado',
+
+      usuario: 'Administrador',
+
+      estado_nuevo: data.estado,
+      ubicacion_nueva: data.ubicacion,
+      asignado_nuevo: data.asignado_a,
+
+      observaciones: data.observaciones
+    })
+
+    res.json({
+      ok: true,
+      activo: data
+    })
+
   } catch (error) {
+
     console.error('Error creando activo:', error)
-    res.status(500).json({ ok: false, error: error.message })
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
   }
 })
 
@@ -972,9 +1043,21 @@ app.post('/activos', async (req, res) => {
 // ACTIVOS - EDITAR
 // =========================
 app.put('/activos/:id', async (req, res) => {
+
   try {
+
     const { id } = req.params
 
+    // ACTIVO ANTES DEL CAMBIO
+    const { data: activoAnterior, error: errorAnterior } = await supabase
+      .from('activos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorAnterior) throw errorAnterior
+
+    // ACTUALIZAR
     const { data, error } = await supabase
       .from('activos')
       .update({
@@ -987,13 +1070,73 @@ app.put('/activos/:id', async (req, res) => {
 
     if (error) throw error
 
-    res.json({ ok: true, activo: data })
+    // REGISTRAR MOVIMIENTO
+    await registrarMovimiento({
+      activo_id: data.id,
+
+      tipo_movimiento: 'edicion',
+
+      descripcion: 'Activo editado',
+
+      usuario: 'Administrador',
+
+      estado_anterior: activoAnterior.estado,
+      estado_nuevo: data.estado,
+
+      ubicacion_anterior: activoAnterior.ubicacion,
+      ubicacion_nueva: data.ubicacion,
+
+      asignado_anterior: activoAnterior.asignado_a,
+      asignado_nuevo: data.asignado_a,
+
+      observaciones: data.observaciones
+    })
+
+    res.json({
+      ok: true,
+      activo: data
+    })
+
   } catch (error) {
+
     console.error('Error editando activo:', error)
-    res.status(500).json({ ok: false, error: error.message })
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
   }
 })
 
+// =========================
+// ACTIVOS - HISTORIAL
+// =========================
+app.get('/activos/:id/movimientos', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const { data, error } = await supabase
+      .from('movimientos_inventario')
+      .select('*')
+      .eq('activo_id', id)
+      .order('fecha', { ascending: false })
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      movimientos: data
+    })
+
+  } catch (error) {
+    console.error('Error obteniendo historial:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
 // =========================
 // CONSUMIBLES - GET
 // =========================

@@ -246,6 +246,7 @@
                   <th>Asignado a</th>
                   <th>Vencimiento</th>
                   <th>Certificado</th>
+                  <th>Observaciones</th>
                   <th>Acción</th>
                 </tr>
               </thead>
@@ -382,7 +383,7 @@
 
     async function cargarActivos() {
       const tbody = document.getElementById('tabla-activos')
-      tbody.innerHTML = '<tr><td colspan="9">Cargando activos...</td></tr>'
+      tbody.innerHTML = '<tr><td colspan="10">Cargando activos...</td></tr>'
 
       const res = await fetch(`${API_URL}/activos`)
       const activos = await res.json()
@@ -397,8 +398,10 @@
           <td><input id="asignado_${a.id}" value="${a.asignado_a || ''}"></td>
           <td><input id="vencimiento_${a.id}" type="date" value="${a.vencimiento || ''}"></td>
           <td><input id="certificado_${a.id}" value="${a.certificado_url || ''}"></td>
+          <td><input id="observaciones_${a.id}" value="${a.observaciones || ''}"></td>
           <td>
             <button class="btn-ver" onclick="actualizarActivo('${a.id}')">Guardar</button>
+            <button class="btn-ver" onclick="verHistorialActivo('${a.id}', '${encodeURIComponent(a.descripcion || '')}')">Historial</button>
           </td>
         </tr>
       `).join('')
@@ -424,12 +427,13 @@
     async function actualizarActivo(id) {
       try {
         const payload = {
-          estado: valor(`estado_${id}`),
-          ubicacion: valor(`ubicacion_${id}`) || null,
-          asignado_a: valor(`asignado_${id}`) || null,
-          vencimiento: valor(`vencimiento_${id}`) || null,
-          certificado_url: valor(`certificado_${id}`) || null
-        }
+        estado: valor(`estado_${id}`),
+        ubicacion: valor(`ubicacion_${id}`) || null,
+        asignado_a: valor(`asignado_${id}`) || null,
+        vencimiento: valor(`vencimiento_${id}`) || null,
+        certificado_url: valor(`certificado_${id}`) || null,
+        observaciones: valor(`observaciones_${id}`) || null
+      }
 
         const res = await fetch(`${API_URL}/activos/${id}`, {
           method: 'PUT',
@@ -446,6 +450,48 @@
         mostrarMensaje(error.message, 'error')
       }
     }
+
+    async function verHistorialActivo(id, descripcionCodificada) {
+  try {
+    const descripcion = decodeURIComponent(descripcionCodificada || '')
+
+    const res = await fetch(`${API_URL}/activos/${id}/movimientos`)
+    const data = await res.json()
+
+    console.log('Historial activo:', id, data)
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Error al cargar historial')
+    }
+
+    if (!data.movimientos || data.movimientos.length === 0) {
+      alert(`Historial de ${descripcion}:\n\nSin movimientos registrados.`)
+      return
+    }
+
+    const texto = data.movimientos.map(m => {
+      const fecha = new Date(m.fecha).toLocaleString('es-AR')
+
+      return [
+        `Fecha: ${fecha}`,
+        `Tipo: ${m.tipo_movimiento || ''}`,
+        `Descripción: ${m.descripcion || ''}`,
+        `Usuario: ${m.usuario || ''}`,
+        `Estado: ${m.estado_anterior || '-'} → ${m.estado_nuevo || '-'}`,
+        `Ubicación: ${m.ubicacion_anterior || '-'} → ${m.ubicacion_nueva || '-'}`,
+        `Asignado: ${m.asignado_anterior || '-'} → ${m.asignado_nuevo || '-'}`,
+        `Observaciones: ${m.observaciones || '-'}`,
+        `-------------------------`
+      ].join('\n')
+    }).join('\n')
+
+    alert(`Historial de ${descripcion}:\n\n${texto}`)
+
+  } catch (error) {
+    console.error(error)
+    mostrarMensaje(error.message, 'error')
+  }
+}
 
     async function cargarConsumibles() {
       const tbody = document.getElementById('tabla-consumibles')
