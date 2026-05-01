@@ -227,6 +227,10 @@
             <input id="vencimiento_unidad" type="text" readonly>
           </div>
 
+          <div id="alerta_unidad" class="alerta-vencimiento" style="display:none;">
+         ⚠️ Unidad vencida. No debe utilizarse.
+          </div>
+
           <div>
             <label for="sensor_wika">Sensor WIKA</label>
             <select id="sensor_wika"></select>
@@ -240,6 +244,10 @@
           <div>
             <label for="vencimiento_wika">Vencimiento WIKA</label>
             <input id="vencimiento_wika" type="text" readonly>
+          </div>
+
+          <div id="alerta_wika" class="alerta-vencimiento" style="display:none;">
+         ⚠️ WIKA vencido. No debe utilizarse.
           </div>
         </div>
       </section>
@@ -396,6 +404,19 @@
   return `${dia}/${mes}/${anio}`
 }
 
+function estaVencido(fecha) {
+
+  if (!fecha) return false
+
+  const hoy = new Date()
+  hoy.setHours(0,0,0,0)
+
+  const vencimiento = new Date(fecha)
+  vencimiento.setHours(0,0,0,0)
+
+  return vencimiento < hoy
+}
+
 async function cargarOpcionesEquipos() {
   const selectUnidad = document.getElementById('equipo')
   const selectWika = document.getElementById('sensor_wika')
@@ -435,9 +456,16 @@ async function cargarOpcionesEquipos() {
 }
 
 function actualizarUnidad() {
+
   const id = document.getElementById('equipo').value
+
   const serie = document.getElementById('numero_serie_unidad')
   const venc = document.getElementById('vencimiento_unidad')
+
+  const alerta = document.getElementById('alerta_unidad')
+
+  venc.classList.remove('input-vencido')
+  alerta.style.display = 'none'
 
   if (id === '') {
     serie.value = ''
@@ -445,17 +473,34 @@ function actualizarUnidad() {
     return
   }
 
-  const unidad = UNIDADES.find(u => String(u.id) === String(id))
+  const unidad = UNIDADES.find(
+    u => String(u.id) === String(id)
+  )
+
   if (!unidad) return
 
   serie.value = unidad.numero_serie || ''
   venc.value = formatearFecha(unidad.vencimiento)
+
+  if (estaVencido(unidad.vencimiento)) {
+
+    venc.classList.add('input-vencido')
+
+    alerta.style.display = 'block'
+  }
 }
 
 function actualizarWika() {
+
   const id = document.getElementById('sensor_wika').value
+
   const serie = document.getElementById('numero_serie_wika')
   const venc = document.getElementById('vencimiento_wika')
+
+  const alerta = document.getElementById('alerta_wika')
+
+  venc.classList.remove('input-vencido')
+  alerta.style.display = 'none'
 
   if (id === '') {
     serie.value = ''
@@ -463,12 +508,22 @@ function actualizarWika() {
     return
   }
 
-  const wika = WIKAS.find(w => String(w.id) === String(id))
+  const wika = WIKAS.find(
+    w => String(w.id) === String(id)
+  )
+
   if (!wika) return
 
   serie.value = wika.numero_serie || ''
   venc.value = formatearFecha(wika.vencimiento)
-}  
+
+  if (estaVencido(wika.vencimiento)) {
+
+    venc.classList.add('input-vencido')
+
+    alerta.style.display = 'block'
+  }
+} 
 
     function validarCamposObligatorios() {
       const esNegativa = tipo.value === 'negativa'
@@ -597,6 +652,33 @@ function actualizarWika() {
       try {
         if (!validarCamposObligatorios()) return
 
+        const unidadId = document.getElementById('equipo').value
+const wikaId = document.getElementById('sensor_wika').value
+
+const unidad = UNIDADES.find(
+  u => String(u.id) === String(unidadId)
+)
+
+const wika = WIKAS.find(
+  w => String(w.id) === String(wikaId)
+)
+
+if (unidad && estaVencido(unidad.vencimiento)) {
+  mostrarMensaje(
+    'La unidad seleccionada está vencida.',
+    'error'
+  )
+  return
+}
+
+if (wika && estaVencido(wika.vencimiento)) {
+  mostrarMensaje(
+    'El WIKA seleccionado está vencido.',
+    'error'
+  )
+  return
+}
+
         const esNegativa = tipo.value === 'negativa'
 
         mostrarMensaje('Procesando datos y fotos...', 'success')
@@ -705,6 +787,11 @@ function actualizarWika() {
 
   // Resetear lógica visual (tipo de prueba)
   actualizarTipo()
+
+  document.getElementById('vencimiento_unidad').classList.remove('input-vencido')
+  document.getElementById('vencimiento_wika').classList.remove('input-vencido')
+  document.getElementById('alerta_unidad').style.display = 'none'
+  document.getElementById('alerta_wika').style.display = 'none'
 
   // Limpiar previews de imágenes (si existen)
   const preview1 = document.getElementById('preview_1')

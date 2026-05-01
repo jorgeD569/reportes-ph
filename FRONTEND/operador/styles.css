@@ -329,3 +329,28 @@ body {
   padding: 25px 10px;
   border-top: 1px solid #e2e8f0;
 }
+
+/* ===================================================== */
+/* ALERTAS DE VENCIMIENTO EN FORMULARIO PH */
+/* Bloquea visualmente equipos vencidos */
+/* ===================================================== */
+
+.input-vencido {
+  border: 2px solid #dc2626 !important;
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  font-weight: 700;
+}
+
+.alerta-vencimiento {
+  margin-top: 8px;
+  padding: 10px 12px;
+
+  border-radius: 10px;
+
+  background: #fee2e2;
+  color: #991b1b;
+
+  font-size: 13px;
+  font-weight: 700;
+}

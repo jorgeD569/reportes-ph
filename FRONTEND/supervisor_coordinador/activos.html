@@ -239,18 +239,46 @@
 
       let lista = activos || []
 
-      if (filtro === 'vencimientos') {
-        const hoy = new Date()
-        const limite = new Date()
-        limite.setDate(hoy.getDate() + 30)
+      if (filtro) {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
 
-        lista = lista.filter(activo => {
-          if (!activo.vencimiento) return false
+  lista = lista.filter(activo => {
+    const vencimiento = activo.vencimiento
+      ? new Date(activo.vencimiento)
+      : null
 
-          const vencimiento = new Date(activo.vencimiento)
-          return vencimiento <= limite
-        })
-      }
+    if (vencimiento) {
+      vencimiento.setHours(0, 0, 0, 0)
+    }
+
+    const dias = vencimiento
+      ? Math.ceil((vencimiento - hoy) / (1000 * 60 * 60 * 24))
+      : null
+
+    if (filtro === 'vencidos') {
+      return dias !== null && dias < 0
+    }
+
+    if (filtro === 'criticos') {
+      return dias !== null && dias >= 0 && dias <= 7
+    }
+
+    if (filtro === 'vencimientos') {
+      return dias !== null && dias > 7 && dias <= 30
+    }
+
+    if (filtro === 'fuera_servicio') {
+      return (
+        activo.estado === 'fuera_de_servicio' ||
+        activo.estado === 'en_reparacion' ||
+        activo.estado === 'vencido'
+      )
+    }
+
+    return true
+  })
+}
 
       if (lista.length === 0) {
         tbody.innerHTML = `
