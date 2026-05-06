@@ -1203,6 +1203,114 @@ app.put('/consumibles/:id', async (req, res) => {
   }
 })
 
+// =========================
+// CONSUMIBLES - MOVIMIENTO DE STOCK
+// =========================
+app.post('/consumibles/:id/movimiento', async (req, res) => {
+  try {
+    const { id } = req.params
+    const {
+      tipo_movimiento,
+      cantidad_movimiento,
+      usuario = 'Administrador',
+      observaciones = null
+    } = req.body
+
+    if (!tipo_movimiento) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Falta tipo_movimiento'
+      })
+    }
+
+    if (!['ingreso', 'egreso', 'ajuste'].includes(tipo_movimiento)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Tipo de movimiento inválido'
+      })
+    }
+
+    const cantidadNum = Number(cantidad_movimiento)
+
+    if (isNaN(cantidadNum) || cantidadNum <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'La cantidad debe ser mayor a 0'
+      })
+    }
+
+    const { data: consumible, error: errorConsumible } = await supabase
+      .from('consumibles')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorConsumible) throw errorConsumible
+
+    const cantidadAnterior = Number(consumible.cantidad || 0)
+
+    let cantidadNueva = cantidadAnterior
+
+    if (tipo_movimiento === 'ingreso') {
+      cantidadNueva = cantidadAnterior + cantidadNum
+    }
+
+    if (tipo_movimiento === 'egreso') {
+      cantidadNueva = cantidadAnterior - cantidadNum
+
+      if (cantidadNueva < 0) {
+        return res.status(400).json({
+          ok: false,
+          error: 'No hay stock suficiente para realizar el egreso'
+        })
+      }
+    }
+
+    if (tipo_movimiento === 'ajuste') {
+      cantidadNueva = cantidadNum
+    }
+
+    const { data: actualizado, error: errorUpdate } = await supabase
+      .from('consumibles')
+      .update({
+        cantidad: cantidadNueva,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (errorUpdate) throw errorUpdate
+
+    const { error: errorMovimiento } = await supabase
+      .from('movimientos_consumibles')
+      .insert([{
+        consumible_id: id,
+        tipo_movimiento,
+        cantidad_anterior: cantidadAnterior,
+        cantidad_movimiento: cantidadNum,
+        cantidad_nueva: cantidadNueva,
+        usuario,
+        observaciones
+      }])
+
+    if (errorMovimiento) throw errorMovimiento
+
+    res.json({
+      ok: true,
+      consumible: actualizado
+    })
+
+  } catch (error) {
+    console.error('Error registrando movimiento de consumible:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
     if (browserInstance) await browserInstance.close()

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coordinador | Consumibles</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <img
+          src="https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/logos/logo1.png"
+          alt="Logo empresa"
+          class="sidebar-logo"
+        >
+        <div class="sidebar-brand-text">
+          <strong>Kompass</strong>
+          <span>Panel coordinador</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <span>Dashboard</span>
+        </a>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de PH</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="reportes-ph.html?estado=pendiente" class="submenu-item">Registros pendientes</a>
+            <a href="reportes-ph.html?estado=cerrado" class="submenu-item">Registros cerrados</a>
+          </div>
+        </div>
+
+        <div class="nav-group open">
+          <button class="nav-toggle active" type="button">
+            <span>Inventario</span>
+            <span class="arrow">⌄</span>
+          </button>
+
+          <div class="submenu">
+            <a href="activos.html" class="submenu-item">Todos los activos</a>
+            <a href="activos.html?categoria=unidad" class="submenu-item">Unidades</a>
+            <a href="activos.html?categoria=wika" class="submenu-item">WIKAs</a>
+            <a href="activos.html?categoria=linea" class="submenu-item">Líneas y accesorios</a>
+            <a href="activos.html?categoria=seguridad" class="submenu-item">Elementos de seguridad</a>
+            <a href="activos.html?categoria=otro" class="submenu-item">Otros</a>
+
+            <hr style="margin:10px 0;">
+
+            <a href="consumibles.html" class="submenu-item active">Consumibles</a>
+            <a href="inventario-gestion.html" class="submenu-item">Gestión de inventario</a>
+          </div>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-toggle" type="button">
+            <span>Reportes de servicio</span>
+            <span class="arrow">⌄</span>
+          </button>
+          <div class="submenu">
+            <a href="#" class="submenu-item">Nuevo reporte</a>
+            <a href="#" class="submenu-item">Registros cargados</a>
+            <a href="#" class="submenu-item">Pendientes de revisión</a>
+          </div>
+        </div>
+
+        <a href="#" class="nav-item">
+          <span>Paneles</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        © 2026 Kompass
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div>
+          <h1>Consumibles</h1>
+          <p>Control de materiales, cantidades disponibles y stock mínimo.</p>
+        </div>
+      </header>
+
+      <main class="content">
+
+        <section class="dashboard-grid">
+          <a href="consumibles.html" class="info-card">
+            <span class="info-label">Total consumibles</span>
+            <strong id="totalConsumibles">0</strong>
+          </a>
+
+          <a href="consumibles.html?filtro=stock_bajo" class="info-card">
+            <span class="info-label">Stock bajo</span>
+            <strong id="stockBajo">0</strong>
+          </a>
+
+          <a href="consumibles.html?filtro=sin_stock" class="info-card">
+            <span class="info-label">Sin stock</span>
+            <strong id="sinStock">0</strong>
+          </a>
+
+          <a href="consumibles.html?filtro=ok" class="info-card">
+            <span class="info-label">Stock correcto</span>
+            <strong id="stockOk">0</strong>
+          </a>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>Listado de consumibles</h2>
+              <p>Consultá stock disponible, mínimos, ubicación y observaciones.</p>
+            </div>
+          </div>
+
+          <div id="mensaje" class="message"></div>
+
+          <div class="toolbar">
+            <input
+              id="busqueda"
+              type="text"
+              placeholder="Buscar por descripción, categoría, ubicación u observaciones..."
+              oninput="renderConsumibles()"
+            >
+          </div>
+
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Descripción</th>
+                  <th>Categoría</th>
+                  <th>Cantidad</th>
+                  <th>Stock mínimo</th>
+                  <th>Estado stock</th>
+                  <th>Ubicación</th>
+                  <th>Observaciones</th>
+                </tr>
+              </thead>
+              <tbody id="tabla-consumibles">
+                <tr>
+                  <td colspan="7">Cargando consumibles...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <footer class="footer">
+          Sistema desarrollado por <strong>Dabrowski J</strong>
+        </footer>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:3000'
+      : 'https://reportes-ph.onrender.com'
+
+    let CONSUMIBLES = []
+
+    document.querySelectorAll('.nav-toggle').forEach(button => {
+      button.addEventListener('click', () => {
+        const group = button.parentElement
+        group.classList.toggle('open')
+      })
+    })
+
+    function mostrarMensaje(texto, tipo = 'success') {
+      const mensaje = document.getElementById('mensaje')
+      mensaje.textContent = texto
+      mensaje.className = `message ${tipo}`
+      mensaje.style.display = 'block'
+    }
+
+    function obtenerParametros() {
+      const params = new URLSearchParams(window.location.search)
+      return {
+        filtro: params.get('filtro')
+      }
+    }
+
+    function normalizar(texto) {
+      return String(texto || '').toLowerCase().trim()
+    }
+
+    function estadoStock(consumible) {
+      const cantidad = Number(consumible.cantidad || 0)
+      const minimo = Number(consumible.stock_minimo || 0)
+
+      if (cantidad <= 0) {
+        return {
+          clase: 'vencimiento-vencido',
+          texto: 'Sin stock'
+        }
+      }
+
+      if (cantidad <= minimo) {
+        return {
+          clase: 'vencimiento-critico',
+          texto: 'Stock bajo'
+        }
+      }
+
+      return {
+        clase: 'vencimiento-ok',
+        texto: 'Stock OK'
+      }
+    }
+
+    function aplicarFiltros(lista) {
+      const { filtro } = obtenerParametros()
+      const busqueda = normalizar(document.getElementById('busqueda').value)
+
+      let resultado = [...lista]
+
+      if (filtro === 'stock_bajo') {
+        resultado = resultado.filter(c => {
+          const cantidad = Number(c.cantidad || 0)
+          const minimo = Number(c.stock_minimo || 0)
+          return cantidad > 0 && cantidad <= minimo
+        })
+      }
+
+      if (filtro === 'sin_stock') {
+        resultado = resultado.filter(c => Number(c.cantidad || 0) <= 0)
+      }
+
+      if (filtro === 'ok') {
+        resultado = resultado.filter(c => {
+          const cantidad = Number(c.cantidad || 0)
+          const minimo = Number(c.stock_minimo || 0)
+          return cantidad > minimo
+        })
+      }
+
+      if (busqueda) {
+        resultado = resultado.filter(c => {
+          const texto = [
+            c.descripcion,
+            c.categoria,
+            c.ubicacion,
+            c.observaciones
+          ].map(normalizar).join(' ')
+
+          return texto.includes(busqueda)
+        })
+      }
+
+      return resultado
+    }
+
+    function actualizarResumen() {
+      document.getElementById('totalConsumibles').textContent =
+        CONSUMIBLES.length
+
+      document.getElementById('stockBajo').textContent =
+        CONSUMIBLES.filter(c => {
+          const cantidad = Number(c.cantidad || 0)
+          const minimo = Number(c.stock_minimo || 0)
+          return cantidad > 0 && cantidad <= minimo
+        }).length
+
+      document.getElementById('sinStock').textContent =
+        CONSUMIBLES.filter(c => Number(c.cantidad || 0) <= 0).length
+
+      document.getElementById('stockOk').textContent =
+        CONSUMIBLES.filter(c => {
+          const cantidad = Number(c.cantidad || 0)
+          const minimo = Number(c.stock_minimo || 0)
+          return cantidad > minimo
+        }).length
+    }
+
+    function renderConsumibles() {
+      const tbody = document.getElementById('tabla-consumibles')
+      const lista = aplicarFiltros(CONSUMIBLES)
+
+      if (lista.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">No hay consumibles para mostrar.</td>
+          </tr>
+        `
+        return
+      }
+
+      tbody.innerHTML = lista.map(consumible => {
+        const stock = estadoStock(consumible)
+
+        return `
+          <tr>
+            <td>${consumible.descripcion || ''}</td>
+            <td>${consumible.categoria || ''}</td>
+            <td><strong>${consumible.cantidad ?? 0}</strong></td>
+            <td>${consumible.stock_minimo ?? 0}</td>
+            <td>
+              <div class="vencimiento-box ${stock.clase}">
+                <div>${stock.texto}</div>
+              </div>
+            </td>
+            <td>${consumible.ubicacion || ''}</td>
+            <td>${consumible.observaciones || ''}</td>
+          </tr>
+        `
+      }).join('')
+    }
+
+    async function cargarConsumibles() {
+      const tbody = document.getElementById('tabla-consumibles')
+
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="7">Cargando consumibles...</td>
+        </tr>
+      `
+
+      try {
+        const res = await fetch(`${API_URL}/consumibles`)
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Error al cargar consumibles')
+        }
+
+        CONSUMIBLES = data || []
+
+        actualizarResumen()
+        renderConsumibles()
+
+      } catch (error) {
+        console.error(error)
+        mostrarMensaje(error.message, 'error')
+
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">Error al cargar consumibles.</td>
+          </tr>
+        `
+      }
+    }
+
+    cargarConsumibles()
+  </script>
+</body>
+</html>

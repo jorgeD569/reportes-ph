@@ -112,9 +112,9 @@
               <label>Estado</label>
               <select id="activo_estado">
                 <option value="operativo">Operativo</option>
-                <option value="fuera_de_servicio">Fuera de servicio</option>
+                <option value="fuera de servicio">Fuera de servicio</option>
                 <option value="vencido">Vencido</option>
-                <option value="en_reparacion">En reparación</option>
+                <option value="en reparacion">En reparación</option>
               </select>
             </div>
 
@@ -285,6 +285,136 @@
           Sistema desarrollado por <strong>Dabrowski J</strong>
         </footer>
         
+        <div id="modalEditarActivo" class="modal-historial">
+
+  <div class="modal-historial-content">
+
+    <div class="modal-historial-header">
+      <h2>Editar activo</h2>
+
+      <button class="cerrar-modal" onclick="cerrarModalEditar()">
+        ✕
+      </button>
+    </div>
+
+    <div class="historial-body">
+
+      <input type="hidden" id="edit_id">
+
+      <div class="grid-2">
+
+        <div>
+          <label>Estado</label>
+
+          <select id="edit_estado">
+            <option value="operativo">Operativo</option>
+            <option value="fuera de servicio">Fuera de servicio</option>
+            <option value="vencido">Vencido</option>
+            <option value="en reparacion">En reparación</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Ubicación</label>
+          <input id="edit_ubicacion" type="text">
+        </div>
+
+        <div>
+          <label>Asignado a</label>
+          <input id="edit_asignado" type="text">
+        </div>
+
+        <div>
+          <label>Vencimiento</label>
+          <input id="edit_vencimiento" type="date">
+        </div>
+
+        <div>
+          <label>Certificado URL</label>
+          <input id="edit_certificado" type="text">
+        </div>
+
+        <div>
+          <label>Observaciones</label>
+          <input id="edit_observaciones" type="text">
+        </div>
+
+      </div>
+
+      <div class="actions" style="margin-top:20px;">
+        <button class="btn btn-primary" onclick="guardarEdicionModal()">
+          Guardar cambios
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+<div id="modalMovimientoConsumible" class="modal-historial">
+
+  <div class="modal-historial-content">
+
+    <div class="modal-historial-header">
+      <h2 id="tituloMovimientoConsumible">
+        Movimiento de stock
+      </h2>
+
+      <button class="cerrar-modal" onclick="cerrarModalMovimientoConsumible()">
+        ✕
+      </button>
+    </div>
+
+    <div class="historial-body">
+
+      <input type="hidden" id="mov_consumible_id">
+
+      <div class="grid-2">
+
+        <div>
+          <label>Tipo de movimiento</label>
+
+          <select id="mov_tipo">
+            <option value="ingreso">Ingreso</option>
+            <option value="egreso">Egreso</option>
+            <option value="ajuste">Ajuste</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Cantidad</label>
+          <input id="mov_cantidad" type="number" min="1">
+        </div>
+
+        <div>
+          <label>Usuario</label>
+          <input id="mov_usuario" type="text" value="Administrador">
+        </div>
+
+        <div>
+          <label>Observaciones</label>
+          <input id="mov_observaciones" type="text">
+        </div>
+
+      </div>
+
+      <div class="actions" style="margin-top:20px;">
+        <button
+          class="btn btn-primary"
+          onclick="guardarMovimientoConsumible()"
+        >
+          Registrar movimiento
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
         <div id="modalHistorial" class="modal-historial">
   <div class="modal-historial-content">
 
@@ -410,16 +540,36 @@
           <td>${a.descripcion || ''}</td>
           <td>${a.categoria || ''}</td>
           <td>${a.numero_serie || ''}</td>
-          <td><input id="estado_${a.id}" value="${a.estado || ''}"></td>
-          <td><input id="ubicacion_${a.id}" value="${a.ubicacion || ''}"></td>
-          <td><input id="asignado_${a.id}" value="${a.asignado_a || ''}"></td>
-          <td><input id="vencimiento_${a.id}" type="date" value="${a.vencimiento || ''}"></td>
-          <td><input id="certificado_${a.id}" value="${a.certificado_url || ''}"></td>
-          <td><input id="observaciones_${a.id}" value="${a.observaciones || ''}"></td>
-          <td>
-            <button class="btn-ver" onclick="actualizarActivo('${a.id}')">Guardar</button>
-            <button class="btn-ver" onclick="verHistorialActivo('${a.id}', '${encodeURIComponent(a.descripcion || '')}')">Historial</button>
-          </td>
+          <td>${a.estado || ''}</td>
+          <td>${a.ubicacion || ''}</td>
+          <td>${a.asignado_a || ''}</td>
+          <td>${a.vencimiento || ''}</td>
+
+        <td>
+          ${
+            a.certificado_url
+            ? `<a href="${a.certificado_url}" target="_blank">Ver</a>`
+            : '-'
+         }
+        </td>
+
+        <td>${a.observaciones || ''}</td>
+
+        <td>
+          <button
+           class="btn-ver"
+           onclick='abrirModalEditar(${JSON.stringify(a)})'
+          >
+            Editar
+          </button>
+
+          <button
+            class="btn-ver"
+            onclick="verHistorialActivo('${a.id}', '${encodeURIComponent(a.descripcion || '')}')"
+          >
+             Historial
+           </button>
+        </td>
         </tr>
       `).join('')
     }
@@ -440,33 +590,6 @@
 
   mostrarMensaje('Usuario o contraseña incorrectos.', 'error')
 }
-
-    async function actualizarActivo(id) {
-      try {
-        const payload = {
-        estado: valor(`estado_${id}`),
-        ubicacion: valor(`ubicacion_${id}`) || null,
-        asignado_a: valor(`asignado_${id}`) || null,
-        vencimiento: valor(`vencimiento_${id}`) || null,
-        certificado_url: valor(`certificado_${id}`) || null,
-        observaciones: valor(`observaciones_${id}`) || null
-      }
-
-        const res = await fetch(`${API_URL}/activos/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-
-        const data = await res.json()
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al actualizar activo')
-
-        mostrarMensaje('Activo actualizado.', 'success')
-        cargarActivos()
-      } catch (error) {
-        mostrarMensaje(error.message, 'error')
-      }
-    }
 
    async function verHistorialActivo(id, descripcionCodificada) {
 
@@ -593,6 +716,190 @@ function cerrarModalHistorial() {
     .classList.remove('visible')
 }
 
+function abrirModalEditar(activo) {
+
+  document.getElementById('edit_id').value =
+    activo.id || ''
+
+  document.getElementById('edit_estado').value =
+    activo.estado || 'operativo'
+
+  document.getElementById('edit_ubicacion').value =
+    activo.ubicacion || ''
+
+  document.getElementById('edit_asignado').value =
+    activo.asignado_a || ''
+
+  document.getElementById('edit_vencimiento').value =
+    activo.vencimiento || ''
+
+  document.getElementById('edit_certificado').value =
+    activo.certificado_url || ''
+
+  document.getElementById('edit_observaciones').value =
+    activo.observaciones || ''
+
+  document
+    .getElementById('modalEditarActivo')
+    .classList.add('visible')
+}
+
+function cerrarModalEditar() {
+
+  document
+    .getElementById('modalEditarActivo')
+    .classList.remove('visible')
+}
+
+async function guardarEdicionModal() {
+
+  try {
+
+    const id =
+      document.getElementById('edit_id').value
+
+    const payload = {
+
+      estado:
+        valor('edit_estado'),
+
+      ubicacion:
+        valor('edit_ubicacion') || null,
+
+      asignado_a:
+        valor('edit_asignado') || null,
+
+      vencimiento:
+        valor('edit_vencimiento') || null,
+
+      certificado_url:
+        valor('edit_certificado') || null,
+
+      observaciones:
+        valor('edit_observaciones') || null
+    }
+
+    const res = await fetch(`${API_URL}/activos/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || !data.ok) {
+      throw new Error(
+        data.error || 'Error al actualizar activo'
+      )
+    }
+
+    mostrarMensaje(
+      'Activo actualizado.',
+      'success'
+    )
+
+    cerrarModalEditar()
+
+    cargarActivos()
+
+  } catch (error) {
+
+    mostrarMensaje(
+      error.message,
+      'error'
+    )
+  }
+}
+    function abrirModalMovimientoConsumible(consumible) {
+
+  document.getElementById('mov_consumible_id').value =
+    consumible.id
+
+  document.getElementById('tituloMovimientoConsumible').textContent =
+    `Movimiento - ${consumible.descripcion || ''}`
+
+  document.getElementById('mov_tipo').value =
+    'ingreso'
+
+  document.getElementById('mov_cantidad').value =
+    ''
+
+  document.getElementById('mov_observaciones').value =
+    ''
+
+  document
+    .getElementById('modalMovimientoConsumible')
+    .classList.add('visible')
+}
+
+function cerrarModalMovimientoConsumible() {
+
+  document
+    .getElementById('modalMovimientoConsumible')
+    .classList.remove('visible')
+}
+
+async function guardarMovimientoConsumible() {
+
+  try {
+
+    const id =
+      document.getElementById('mov_consumible_id').value
+
+    const payload = {
+
+      tipo_movimiento:
+        valor('mov_tipo'),
+
+      cantidad_movimiento:
+        Number(valor('mov_cantidad') || 0),
+
+      usuario:
+        valor('mov_usuario') || 'Administrador',
+
+      observaciones:
+        valor('mov_observaciones') || null
+    }
+
+    const res = await fetch(
+      `${API_URL}/consumibles/${id}/movimiento`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      }
+    )
+
+    const data = await res.json()
+
+    if (!res.ok || !data.ok) {
+
+      throw new Error(
+        data.error || 'Error registrando movimiento'
+      )
+    }
+
+    mostrarMensaje(
+      'Movimiento registrado correctamente.',
+      'success'
+    )
+
+    cerrarModalMovimientoConsumible()
+
+    cargarConsumibles()
+
+  } catch (error) {
+
+    mostrarMensaje(
+      error.message,
+      'error'
+    )
+  }
+}
     async function cargarConsumibles() {
       const tbody = document.getElementById('tabla-consumibles')
       tbody.innerHTML = '<tr><td colspan="7">Cargando consumibles...</td></tr>'
@@ -604,42 +911,25 @@ function cerrarModalHistorial() {
         <tr>
           <td>${c.descripcion || ''}</td>
           <td>${c.categoria || ''}</td>
-          <td><input id="cantidad_${c.id}" type="number" value="${c.cantidad || 0}"></td>
-          <td><input id="stock_${c.id}" type="number" value="${c.stock_minimo || 0}"></td>
-          <td><input id="ubicacion_c_${c.id}" value="${c.ubicacion || ''}"></td>
-          <td><input id="obs_c_${c.id}" value="${c.observaciones || ''}"></td>
-          <td>
-            <button class="btn-ver" onclick="actualizarConsumible('${c.id}')">Guardar</button>
-          </td>
-        </tr>
+          <td>${c.cantidad || 0}</td>
+          <td>${c.stock_minimo || 0}</td>
+          <td>${c.ubicacion || ''}</td>
+          <td>${c.observaciones || ''}</td>
+
+       <td>
+
+       <button
+    class="btn-ver"
+    onclick='abrirModalMovimientoConsumible(${JSON.stringify(c)})'
+  >
+    Movimiento
+  </button>
+
+</td>
+ </tr>
       `).join('')
     }
-
-    async function actualizarConsumible(id) {
-      try {
-        const payload = {
-          cantidad: Number(valor(`cantidad_${id}`) || 0),
-          stock_minimo: Number(valor(`stock_${id}`) || 0),
-          ubicacion: valor(`ubicacion_c_${id}`) || null,
-          observaciones: valor(`obs_c_${id}`) || null
-        }
-
-        const res = await fetch(`${API_URL}/consumibles/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        })
-
-        const data = await res.json()
-        if (!res.ok || !data.ok) throw new Error(data.error || 'Error al actualizar consumible')
-
-        mostrarMensaje('Consumible actualizado.', 'success')
-        cargarConsumibles()
-      } catch (error) {
-        mostrarMensaje(error.message, 'error')
-      }
-    }
-
+    
     cargarActivos()
     cargarConsumibles()
   </script>
