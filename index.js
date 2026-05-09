@@ -1311,6 +1311,41 @@ app.post('/consumibles/:id/movimiento', async (req, res) => {
   }
 })
 
+<<<<<<< HEAD
+=======
+    // =========================
+// CONSUMIBLES - HISTORIAL
+// =========================
+app.get('/consumibles/:id/movimientos', async (req, res) => {
+  try {
+
+    const { id } = req.params
+
+    const { data, error } = await supabase
+      .from('movimientos_consumibles')
+      .select('*')
+      .eq('consumible_id', id)
+      .order('fecha', { ascending: false })
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      movimientos: data
+    })
+
+  } catch (error) {
+
+    console.error('Error obteniendo historial consumible:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+>>>>>>> dcd631f (Actualizar backend y estructura REPORTES VSCODE)
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
     if (browserInstance) await browserInstance.close()
