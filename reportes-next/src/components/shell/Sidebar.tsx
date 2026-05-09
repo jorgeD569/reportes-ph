@@ -1,0 +1,83 @@
+'use client'
+
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { routes } from '@/lib/constants/routes'
+import { cn } from '@/lib/cn'
+
+type NavItem = {
+  label: string
+  href: string
+}
+
+function NavLink({ item }: { item: NavItem }) {
+  const pathname = usePathname()
+  const active = pathname === item.href || pathname.startsWith(item.href + '/')
+
+  return (
+    <Link
+      href={item.href}
+      className={cn(
+        'flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition',
+        active
+          ? 'bg-white/10 text-white'
+          : 'text-white/80 hover:bg-white/10 hover:text-white'
+      )}
+    >
+      <span>{item.label}</span>
+    </Link>
+  )
+}
+
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const navOperador: NavItem[] = [{ label: 'Parte PH', href: routes.operador.partePh }]
+
+  const navCoordinador: NavItem[] = [
+    { label: 'Dashboard', href: routes.coordinador.dashboard },
+    { label: 'Reportes PH', href: routes.coordinador.reportesPh },
+    { label: 'Activos', href: routes.coordinador.inventario.activos },
+    { label: 'Consumibles', href: routes.coordinador.inventario.consumibles },
+    { label: 'Gestión', href: routes.coordinador.inventario.gestion },
+  ]
+
+  return (
+    <aside className="flex h-full w-full flex-col border-r border-white/10 bg-[linear-gradient(180deg,#0f1f2d_0%,#13283a_100%)] px-3 py-4 text-white">
+      <div className="flex items-center gap-3 px-2 pb-4">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-sm font-extrabold">
+          K
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-extrabold tracking-tight">Kompass</div>
+          <div className="text-xs text-white/60">REPORTES PH</div>
+        </div>
+      </div>
+
+      <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-1">
+        <div>
+          <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
+            Operador
+          </div>
+          <div className="flex flex-col gap-1" onClick={onNavigate}>
+            {navOperador.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
+            Coordinador
+          </div>
+          <div className="flex flex-col gap-1" onClick={onNavigate}>
+            {navCoordinador.map((item) => (
+              <NavLink key={item.href} item={item} />
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      <div className="px-2 pt-4 text-xs text-white/50">© 2026 Kompass</div>
+    </aside>
+  )
+}
+
