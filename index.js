@@ -1311,9 +1311,7 @@ app.post('/consumibles/:id/movimiento', async (req, res) => {
   }
 })
 
-<<<<<<< HEAD
-=======
-    // =========================
+// =========================
 // CONSUMIBLES - HISTORIAL
 // =========================
 app.get('/consumibles/:id/movimientos', async (req, res) => {
@@ -1345,7 +1343,6 @@ app.get('/consumibles/:id/movimientos', async (req, res) => {
   }
 })
 
->>>>>>> dcd631f (Actualizar backend y estructura REPORTES VSCODE)
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
     if (browserInstance) await browserInstance.close()
