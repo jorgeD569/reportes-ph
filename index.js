@@ -1311,7 +1311,7 @@ app.post('/consumibles/:id/movimiento', async (req, res) => {
   }
 })
 
-// =========================
+    // =========================
 // CONSUMIBLES - HISTORIAL
 // =========================
 app.get('/consumibles/:id/movimientos', async (req, res) => {
