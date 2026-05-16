@@ -53,6 +53,16 @@ const proveedoresMock = [
 
 const PROVEEDOR_DEFAULT = proveedoresMock[0]!
 
+const categoriasActivo = [
+  'Unidad PH',
+  'Sensor WIKA',
+  'Línea / accesorio',
+  'Herramienta',
+  'Seguridad',
+  'Piletas',
+  'Otro',
+]
+
 type PreviewPayload =
   | { tab: 'activo'; values: Record<string, string>; docTitle: string }
   | { tab: 'consumible'; values: Record<string, string>; docTitle: string }
@@ -284,20 +294,37 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
           </CardHeader>
           <CardBody className="pt-0">
             <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
-                  Categoría
-                </label>
-                <input className={inputClass()} value={nuevoActivo.categoria}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, categoria: e.target.value }))} />
-              </div>
+              
               <div>
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted">
                   Descripción
                 </label>
                 <input className={inputClass()} value={nuevoActivo.descripcion}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, descripcion: e.target.value }))} />
-              </div>
+              </div><div>
+  <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+    Categoría
+  </label>
+
+  <select
+    className={inputClass()}
+    value={nuevoActivo.categoria}
+    onChange={(e) =>
+      setNuevoActivo((s) => ({
+        ...s,
+        categoria: e.target.value,
+      }))
+    }
+  >
+    <option value="">Seleccionar categoría</option>
+
+    {categoriasActivo.map((categoria) => (
+      <option key={categoria} value={categoria}>
+        {categoria}
+      </option>
+    ))}
+  </select>
+</div>
               <div className="md:col-span-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-muted">
                   Proveedor
