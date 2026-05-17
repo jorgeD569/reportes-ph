@@ -39,7 +39,7 @@ export default function ParteOperativoPage() {
         throw new Error(data.error || 'Error creando parte')
       }
 
-      window.location.href = `/operador/partes-operativos/${data.parte.id}`
+      window.open(`/operador/partes-operativos/${data.parte.id}`, '_blank')
 
       setForm({
         pozo: '',

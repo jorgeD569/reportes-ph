@@ -2,6 +2,18 @@
 
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
+import { post } from '@/lib/api'
+
+type GuardarServiciosResponse = {
+  ok?: boolean
+  error?: string
+}
+
+type CerrarParteResponse = {
+  ok?: boolean
+  pdf_url?: string
+  error?: string
+}
 
 const serviciosBase = [
   { codigo: '10', pos: '1', descripcion: 'UNIDAD PESADA - (Op/Ay/Resc)' },
@@ -31,6 +43,8 @@ export default function ServiciosParteOperativoPage() {
   }
 
   async function guardarServicios() {
+    const parteId = encodeURIComponent(id)
+
     try {
       setLoading(true)
 
@@ -49,39 +63,37 @@ export default function ServiciosParteOperativoPage() {
         return
       }
 
-      const response = await fetch(
-        `http://localhost:3000/partes-operativos/${id}/servicios`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ servicios }),
-        }
+      const guardarData = await post<GuardarServiciosResponse>(
+        `/partes-operativos/${parteId}/servicios`,
+        { servicios }
       )
 
-      const data = await response.json()
-
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || 'Error guardando servicios')
+      if (guardarData.ok === false) {
+        throw new Error(guardarData.error || 'Error guardando servicios')
       }
-      
-      const cerrarResponse = await fetch(
-        `http://localhost:3000/partes-operativos/${id}/cerrar`,
-        {
-          method: 'POST',
-        }
+
+      const cerrarData = await post<CerrarParteResponse>(
+        `/partes-operativos/${parteId}/cerrar`,
+        {}
       )
-      
-      const cerrarData = await cerrarResponse.json()
-      
-      if (!cerrarResponse.ok || !cerrarData.ok) {
+
+      if (cerrarData.ok === false) {
         throw new Error(cerrarData.error || 'Error cerrando parte')
       }
-      
-      alert('Parte cerrado correctamente')
-    } catch (error: any) {
-      alert(error.message)
+
+      const pdfUrl =
+        typeof cerrarData.pdf_url === 'string' ? cerrarData.pdf_url.trim() : ''
+
+      if (pdfUrl) {
+        window.location.href = pdfUrl
+        return
+      }
+
+      alert('Parte cerrado correctamente, pero no se recibió URL del PDF.')
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'Error al cerrar el parte'
+      alert(message)
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,7 @@
 export const routes = {
   operador: {
     partePh: '/operador/parte-ph',
+    partesOperativos: '/operador/partes-operativos',
   },
   coordinador: {
     dashboard: '/coordinador/dashboard',

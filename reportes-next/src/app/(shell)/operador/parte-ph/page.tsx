@@ -237,6 +237,7 @@ export default function OperadorPartePhPage() {
           { key: 'presion_testigo_final' as const, nombre: 'Presión testigo final' },
           { key: 'hs_inicial_negativa' as const, nombre: 'Hs inicial' },
           { key: 'hs_final_negativa' as const, nombre: 'Hs final' },
+          { key: 'resultado_ensayo' as const, nombre: 'Resultado del ensayo' },
         ]
       : [
           { key: 'reporte_numero' as const, nombre: 'Reporte N°' },
@@ -332,7 +333,7 @@ export default function OperadorPartePhPage() {
       let foto_1_base64 = await fileToBase64Pure(foto1)
       let foto_2_base64 = await fileToBase64Pure(foto2)
 
-      const datos = {
+      const datosComunes = {
         reporte_numero: f.reporte_numero.trim(),
         fecha: toBackendDate(f.fecha),
         cliente: f.cliente.trim(),
@@ -346,7 +347,6 @@ export default function OperadorPartePhPage() {
         yacimiento: f.yacimiento.trim(),
         pozo: f.pozo.trim(),
         tipo_prueba: f.tipo_prueba,
-        porcentaje_perdida: esNegativa ? porcentaje_perdida_negativa.trim() : null,
         presion_ensayo: f.presion_ensayo.trim(),
         tiempo_ensayo: f.tiempo_ensayo.trim(),
         fluido_utilizado: f.fluido_utilizado.trim(),
@@ -362,24 +362,44 @@ export default function OperadorPartePhPage() {
         operador_lider: f.operador_lider.trim(),
         operador: f.operador.trim(),
         ayudante: f.ayudante.trim(),
-        presion_estabilizada: esNegativa
-          ? f.presion_entrampada.trim()
-          : f.presion_estabilizada.trim(),
-        hs_estabilizada: esNegativa ? incremento_presion.trim() : f.hs_estabilizada.trim(),
-        presion_final: esNegativa
-          ? f.presion_testigo_inicial.trim()
-          : f.presion_final.trim(),
-        hs_final: esNegativa ? f.hs_inicial_negativa.trim() : f.hs_final.trim(),
-        caida_presion: esNegativa
-          ? f.presion_testigo_final.trim()
-          : caida_presion.trim(),
-        porcentaje_caida: esNegativa
-          ? f.hs_final_negativa.trim()
-          : porcentaje_caida.trim(),
         observaciones: f.observaciones.trim(),
         foto_1_base64,
         foto_2_base64,
       }
+
+      const datos = esNegativa
+        ? {
+            ...datosComunes,
+            presion_entrampada: f.presion_entrampada.trim(),
+            presion_testigo_inicial: f.presion_testigo_inicial.trim(),
+            hs_inicial_negativa: f.hs_inicial_negativa.trim(),
+            presion_testigo_final: f.presion_testigo_final.trim(),
+            hs_final_negativa: f.hs_final_negativa.trim(),
+            incremento: incremento_presion.trim(),
+            porcentaje_perdida: porcentaje_perdida_negativa.trim(),
+            presion_estabilizada: null,
+            hs_estabilizada: null,
+            presion_final: null,
+            hs_final: null,
+            caida_presion: null,
+            porcentaje_caida: null,
+          }
+        : {
+            ...datosComunes,
+            presion_estabilizada: f.presion_estabilizada.trim(),
+            hs_estabilizada: f.hs_estabilizada.trim(),
+            presion_final: f.presion_final.trim(),
+            hs_final: f.hs_final.trim(),
+            caida_presion: caida_presion.trim(),
+            porcentaje_caida: porcentaje_caida.trim(),
+            presion_entrampada: null,
+            presion_testigo_inicial: null,
+            hs_inicial_negativa: null,
+            presion_testigo_final: null,
+            hs_final_negativa: null,
+            incremento: null,
+            porcentaje_perdida: null,
+          }
 
       if (process.env.NODE_ENV === 'development') {
         const payloadLog = {
@@ -781,6 +801,18 @@ export default function OperadorPartePhPage() {
                   className={inputClass}
                   readOnly
                   value={porcentaje_perdida_negativa}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="resultado_ensayo_negativa">
+                  Resultado del ensayo
+                </label>
+                <input
+                  id="resultado_ensayo_negativa"
+                  className={inputClass}
+                  value={f.resultado_ensayo}
+                  onChange={(e) => setField('resultado_ensayo', e.target.value)}
+                  disabled={bloqueadoEquipos}
                 />
               </div>
             </div>

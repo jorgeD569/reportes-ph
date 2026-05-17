@@ -130,6 +130,17 @@ export function toDisplayDate(input: string | Date | null | undefined): string {
 /** Alias de `toDisplayDate` (misma firma y comportamiento). */
 export const formatDateDDMMYYYY = toDisplayDate
 
+/** Solo día dd/mm/aaaa para fechas de calendario (sin hora ni desfase TZ en YYYY-MM-DD). */
+export function formatFechaSoloDia(fecha?: string | null): string {
+  if (!fecha) return '—'
+  if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fecha)) {
+    const [year, month, day] = fecha.slice(0, 10).split('-')
+    return `${day}/${month}/${year}`
+  }
+  const displayed = toDisplayDate(fecha)
+  return displayed || String(fecha)
+}
+
 /** Fecha+hora locales en español Argentina (valor es instantáneo ISO u otro con zona). */
 export function formatDateTimeEsAr(input: string | Date | null | undefined): string {
   if (!input) return ''

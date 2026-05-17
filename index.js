@@ -58,15 +58,20 @@
 
   function formatearFecha(fecha) {
     if (!fecha) return ''
+    if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fecha)) {
+      const [year, month, day] = fecha.slice(0, 10).split('-')
+      return `${day}/${month}/${year}`
+    }
+    return fecha
+  }
 
-    const f = new Date(fecha)
-    if (isNaN(f)) return fecha
-
-    const dia = String(f.getDate()).padStart(2, '0')
-    const mes = String(f.getMonth() + 1).padStart(2, '0')
-    const anio = f.getFullYear()
-
-    return `${dia}/${mes}/${anio}`
+  function formatFechaPdf(fecha) {
+    if (!fecha) return ''
+    if (typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}/.test(fecha)) {
+      const [year, month, day] = fecha.slice(0, 10).split('-')
+      return `${day}/${month}/${year}`
+    }
+    return String(fecha)
   }
 
 async function registrarMovimiento({
@@ -181,6 +186,101 @@ async function registrarMovimiento({
         .single()
 
       if (error) throw error
+
+      console.log('DEBUG PH GUARDADO partes:', {
+        id: parte.id,
+        tipo_prueba: parte.tipo_prueba,
+        resultado_ensayo: parte.resultado_ensayo,
+        presion_entrampada: parte.presion_entrampada,
+        presion_testigo_inicial: parte.presion_testigo_inicial,
+        hs_inicial_negativa: parte.hs_inicial_negativa,
+        presion_testigo_final: parte.presion_testigo_final,
+        hs_final_negativa: parte.hs_final_negativa,
+        incremento: parte.incremento,
+        porcentaje_perdida: parte.porcentaje_perdida,
+        presion_estabilizada: parte.presion_estabilizada,
+        hs_estabilizada: parte.hs_estabilizada,
+        presion_final: parte.presion_final,
+        hs_final: parte.hs_final,
+        caida_presion: parte.caida_presion,
+        porcentaje_caida: parte.porcentaje_caida,
+      })
+
+           // Vincular automáticamente Reporte PH con Parte Operativo
+           const numeroPartePhRaw =
+           parte?.reporte_numero ?? resto?.reporte_numero ?? datos?.reporte_numero
+   
+         console.log('Numero parte PH recibido:', numeroPartePhRaw)
+   
+         if (numeroPartePhRaw !== null && numeroPartePhRaw !== undefined && String(numeroPartePhRaw).trim() !== '') {
+           const numeroParteStr = String(numeroPartePhRaw).trim()
+           const numeroParteNum = Number(numeroParteStr)
+           const valoresBusqueda = []
+   
+           if (!Number.isNaN(numeroParteNum)) {
+             valoresBusqueda.push(numeroParteNum)
+           }
+           if (!valoresBusqueda.includes(numeroParteStr)) {
+             valoresBusqueda.push(numeroParteStr)
+           }
+   
+           let parteOperativo = null
+   
+           for (const valorBusqueda of valoresBusqueda) {
+             console.log('Buscando parte operativo:', valorBusqueda, typeof valorBusqueda)
+   
+             const { data: encontrado, error: errorParteOperativo } = await supabase
+               .from('partes_operativos')
+               .select('id, numero_parte')
+               .eq('numero_parte', valorBusqueda)
+               .maybeSingle()
+   
+             if (errorParteOperativo) {
+               console.log('Error buscando parte operativo:', errorParteOperativo.message)
+               continue
+             }
+   
+             if (encontrado) {
+               parteOperativo = encontrado
+               break
+             }
+           }
+   
+           if (parteOperativo) {
+             console.log('Parte operativo encontrado:', parteOperativo)
+   
+             const numeroParteVinculo = parteOperativo.numero_parte ?? numeroParteNum ?? numeroParteStr
+   
+             const { error: errorVinculoPh } = await supabase
+               .from('partes_operativos_ph')
+               .insert([{
+                 parte_operativo_id: parteOperativo.id,
+                 reporte_ph_id: parte.id,
+                 numero_parte: numeroParteVinculo,
+                 tipo_prueba: parte.tipo_prueba,
+                 valvula: parte.elemento_ensayar,                                 
+                 presion_entrampada: parte.presion_entrampada,
+                 presion_estabilizada: parte.presion_estabilizada,
+                 hs_estabilizada: parte.hs_estabilizada,
+                 presion_final: parte.presion_final,
+                 hs_final: parte.hs_final,
+                 resultado_ensayo: parte.resultado_ensayo,
+                 estado: 'activo',
+               }])
+   
+             if (errorVinculoPh) {
+               console.log('Error insertando vinculo PH:', errorVinculoPh.message)
+             } else {
+               console.log('PH vinculada correctamente:', {
+                 reporte_ph_id: parte.id,
+                 parte_operativo_id: parteOperativo.id,
+                 numero_parte: numeroParteVinculo,
+               })
+             }
+           } else {
+             console.log('Error buscando parte operativo: no existe parte con numero_parte', numeroParteStr)
+           }
+         }
 
       const updates = {}
 
@@ -316,10 +416,36 @@ async function registrarMovimiento({
 
       if (error) throw error
 
+      console.log('DEBUG PH PDF DATA:', {
+        id: data.id,
+        tipo_prueba: data.tipo_prueba,
+        fecha: data.fecha,
+        resultado_ensayo: data.resultado_ensayo,
+        presion_entrampada: data.presion_entrampada,
+        presion_testigo_inicial: data.presion_testigo_inicial,
+        hs_inicial_negativa: data.hs_inicial_negativa,
+        presion_testigo_final: data.presion_testigo_final,
+        hs_final_negativa: data.hs_final_negativa,
+        incremento: data.incremento,
+        porcentaje_perdida: data.porcentaje_perdida,
+        presion_estabilizada: data.presion_estabilizada,
+        hs_estabilizada: data.hs_estabilizada,
+        presion_final: data.presion_final,
+        hs_final: data.hs_final,
+        caida_presion: data.caida_presion,
+        porcentaje_caida: data.porcentaje_caida,
+        reporte_pdf_path: data.reporte_pdf_path,
+      })
+
       if (data.reporte_pdf_path) {
       const { data: pdfUrlData } = supabase.storage
       .from(process.env.BUCKET_PDF)
       .getPublicUrl(data.reporte_pdf_path)
+
+    console.log(
+      'DEBUG PH PDF: devolviendo PDF cacheado (no regenera HTML). Borrá reporte_pdf_path en Supabase para forzar nuevo PDF.',
+      data.reporte_pdf_path
+    )
 
     return res.json({
       message: 'PDF ya generado previamente',
@@ -360,6 +486,58 @@ async function registrarMovimiento({
 
     foto2Url = foto2UrlData?.publicUrl || ''
   }
+
+      const esPruebaNegativa =
+        String(data.tipo_prueba || '').trim().toLowerCase() === 'negativa'
+
+      console.log('DEBUG PH PDF RENDER:', {
+        parte_id,
+        esPruebaNegativa,
+        tipo_prueba: data.tipo_prueba,
+      })
+
+      function pickPdfValor(registro, ...campos) {
+        for (const campo of campos) {
+          const valor = registro[campo]
+          if (valor !== null && valor !== undefined && String(valor).trim() !== '') {
+            return String(valor).trim()
+          }
+        }
+        return ''
+      }
+
+      // Registros viejos guardaron negativa en columnas positivas; fallback solo para PDF.
+      const pdfNegativa = esPruebaNegativa
+        ? {
+            presion_entrampada: pickPdfValor(
+              data,
+              'presion_entrampada',
+              'presion_estabilizada'
+            ),
+            incremento: pickPdfValor(data, 'incremento', 'hs_estabilizada'),
+            presion_testigo_inicial: pickPdfValor(
+              data,
+              'presion_testigo_inicial',
+              'presion_final'
+            ),
+            hs_inicial_negativa: pickPdfValor(
+              data,
+              'hs_inicial_negativa',
+              'hs_final'
+            ),
+            presion_testigo_final: pickPdfValor(
+              data,
+              'presion_testigo_final',
+              'caida_presion'
+            ),
+            hs_final_negativa: pickPdfValor(
+              data,
+              'hs_final_negativa',
+              'porcentaje_caida'
+            ),
+            porcentaje_perdida: pickPdfValor(data, 'porcentaje_perdida'),
+          }
+        : null
 
       const html = `
   <!DOCTYPE html>
@@ -712,7 +890,7 @@ async function registrarMovimiento({
           <td style="width:22%;"><strong>Precinto N°:</strong></td>
           <td style="width:28%;">${data.numero_precinto || data.numero_presinto || ''}</td>
           <td style="width:25%;"><strong>Resultado del ensayo</strong></td>
-          <td style="width:25%;">${data.resultado_ensayo || ''}</td>
+          <td style="width:25%;">${data.resultado_ensayo ?? ''}</td>
         </tr>
       </table>
 
@@ -756,29 +934,29 @@ async function registrarMovimiento({
       <div class="section-title">Datos del ensayo</div>
   <table class="form-table">
     ${
-      data.tipo_prueba === 'negativa'
+      esPruebaNegativa
         ? `
     <tr>
       <td class="label-cell center">Presión entrampada</td>
-      <td class="value-cell">${data.presion_estabilizada || ''}</td>
+      <td class="value-cell">${pdfNegativa.presion_entrampada}</td>
       <td class="label-cell center">Incremento de presión</td>
-      <td class="value-cell">${data.hs_estabilizada || ''}</td>
+      <td class="value-cell">${pdfNegativa.incremento}</td>
     </tr>
     <tr>
       <td class="label-cell center">Presión testigo</td>
-      <td class="value-cell">${data.presion_final || ''}</td>
+      <td class="value-cell">${pdfNegativa.presion_testigo_inicial}</td>
       <td class="label-cell center">Hs inicio</td>
-      <td class="value-cell">${data.hs_final || ''}</td>
+      <td class="value-cell">${pdfNegativa.hs_inicial_negativa}</td>
     </tr>
     <tr>
       <td class="label-cell center">Presión final</td>
-      <td class="value-cell">${data.caida_presion || ''}</td>
+      <td class="value-cell">${pdfNegativa.presion_testigo_final}</td>
       <td class="label-cell center">Hs final</td>
-      <td class="value-cell">${data.porcentaje_caida || ''}</td>
+      <td class="value-cell">${pdfNegativa.hs_final_negativa}</td>
     </tr>
     <tr>
       <td class="label-cell center">% de pérdida</td>
-      <td class="value-cell">${data.porcentaje_perdida || ''}</td>
+      <td class="value-cell">${pdfNegativa.porcentaje_perdida}</td>
       <td class="label-cell center"></td>
       <td class="value-cell"></td>
     </tr>
@@ -786,21 +964,21 @@ async function registrarMovimiento({
         : `
     <tr>
       <td class="label-cell center">Presión estabilizada</td>
-      <td class="value-cell">${data.presion_estabilizada || ''}</td>
+      <td class="value-cell">${data.presion_estabilizada ?? ''}</td>
       <td class="label-cell center">Hs estabilizada</td>
-      <td class="value-cell">${data.hs_estabilizada || ''}</td>
+      <td class="value-cell">${data.hs_estabilizada ?? ''}</td>
     </tr>
     <tr>
       <td class="label-cell center">Presión final</td>
-      <td class="value-cell">${data.presion_final || ''}</td>
+      <td class="value-cell">${data.presion_final ?? ''}</td>
       <td class="label-cell center">Hs final</td>
-      <td class="value-cell">${data.hs_final || ''}</td>
+      <td class="value-cell">${data.hs_final ?? ''}</td>
     </tr>
     <tr>
       <td class="label-cell center">Caída de presión</td>
-      <td class="value-cell">${data.caida_presion || ''}</td>
+      <td class="value-cell">${data.caida_presion ?? ''}</td>
       <td class="label-cell center">% de caída</td>
-      <td class="value-cell">${data.porcentaje_caida || ''}</td>
+      <td class="value-cell">${data.porcentaje_caida ?? ''}</td>
     </tr>
         `
     }
@@ -1582,6 +1760,10 @@ app.post('/partes-operativos/:id/servicios', async (req, res) => {
 
 // CERRAR PARTE
 app.post('/partes-operativos/:id/cerrar', async (req, res) => {
+
+  let context = null
+  let page = null
+
   try {
 
     const { id } = req.params
@@ -1601,19 +1783,281 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
       })
     }
 
+    const { data: servicios, error: errorServicios } = await supabase
+      .from('partes_operativos_servicios')
+      .select('*')
+      .eq('parte_id', id)
+
+    if (errorServicios) throw errorServicios
+
+    const { data: pruebasPh, error: errorPruebasPh } = await supabase
+    .from('partes_operativos_ph')
+    .select('*')
+    .eq('parte_operativo_id', id)
+    .order('created_at', { ascending: true })
+  
+  if (errorPruebasPh) throw errorPruebasPh
+
+    const reportePhIds = (pruebasPh || [])
+      .map((row) => row.reporte_ph_id)
+      .filter(Boolean)
+
+    let partesPhById = {}
+
+    if (reportePhIds.length > 0) {
+      const { data: partesPhRows, error: errorPartesPhRows } = await supabase
+        .from('partes')
+        .select('*')
+        .in('id', reportePhIds)
+
+      if (errorPartesPhRows) throw errorPartesPhRows
+
+      partesPhById = Object.fromEntries(
+        (partesPhRows || []).map((p) => [p.id, p])
+      )
+    }
+
+    const htmlServicios = (servicios || [])
+      .map((s) => `
+        <tr>
+          <td>${s.codigo_servicio || ''}</td>
+          <td>${s.pos || ''}</td>
+          <td>${s.descripcion || ''}</td>
+          <td>${s.cantidad || 0}</td>
+        </tr>
+      `)
+      .join('')
+
+      const htmlPruebasPh = (pruebasPh || [])
+        .map((link) => {
+          const ph = partesPhById[link.reporte_ph_id] || link
+          const esNegativa =
+            String(ph.tipo_prueba || link.tipo_prueba || '')
+              .trim()
+              .toLowerCase() === 'negativa'
+
+          const presEntrampada = ph.presion_entrampada || ''
+          const presEstabilizada = esNegativa
+            ? ph.presion_testigo_inicial || ''
+            : ph.presion_estabilizada || ''
+          const hsEstab = esNegativa
+            ? ph.hs_inicial_negativa || ''
+            : ph.hs_estabilizada || ''
+          const presFinal = esNegativa
+            ? ph.presion_testigo_final || ''
+            : ph.presion_final || ''
+          const hsFinal = esNegativa
+            ? ph.hs_final_negativa || ''
+            : ph.hs_final || ''
+          const resultado = ph.resultado_ensayo || ''
+          const valvula = link.valvula || ph.elemento_ensayar || ''
+
+          return `
+    <tr>
+      <td>${valvula}</td>
+      <td>${presEntrampada}</td>
+      <td>${presEstabilizada}</td>
+      <td>${hsEstab}</td>
+      <td>${presFinal}</td>
+      <td>${hsFinal}</td>
+      <td>${resultado}</td>
+    </tr>
+  `
+        })
+        .join('')
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8" />
+
+        <style>
+
+          body {
+            font-family: Arial;
+            padding: 30px;
+            color: #111;
+          }
+
+          h1 {
+            text-align: center;
+            margin-bottom: 30px;
+          }
+
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+          }
+
+          th, td {
+            border: 1px solid #000;
+            padding: 8px;
+            font-size: 12px;
+          }
+
+          th {
+            background: #ddd;
+          }
+
+          .bloque {
+            margin-top: 25px;
+          }
+
+          .titulo {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+
+          .obs {
+            border: 1px solid #000;
+            min-height: 120px;
+            padding: 10px;
+            white-space: pre-wrap;
+          }
+
+        </style>
+      </head>
+
+      <body>
+
+        <h1>PARTE OPERATIVO</h1>
+
+        <div class="bloque">
+          <div class="titulo">Información General</div>
+
+          <table>
+            <tr>
+              <th>N° Parte</th>
+              <td>${parte.numero_parte || ''}</td>
+
+              <th>Fecha</th>
+              <td>${formatFechaPdf(parte.fecha || parte.created_at || '')}</td>
+            </tr>
+
+            <tr>
+              <th>Pozo</th>
+              <td>${parte.pozo || ''}</td>
+
+              <th>Yacimiento</th>
+              <td>${parte.yacimiento || ''}</td>
+            </tr>
+
+            <tr>
+              <th>Operadora</th>
+              <td>${parte.operadora || ''}</td>
+
+              <th>Contratista</th>
+              <td>${parte.contratista || ''}</td>
+            </tr>
+
+            <tr>
+              <th>Unidad</th>
+              <td colspan="3">${parte.unidad_pesada || ''}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="bloque">
+          <div class="titulo">Observaciones</div>
+
+          <div class="obs">
+${parte.observaciones || ''}
+          </div>
+        </div>
+
+        <div class="bloque">
+  <div class="titulo">Pruebas Hidráulicas</div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Válvula / Elemento</th>
+        <th>Pres. Entrampada</th>
+        <th>Pres. Estabilizada</th>
+        <th>Hs Estab.</th>
+        <th>Pres. Final</th>
+        <th>Hs Final</th>
+        <th>Resultado</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${htmlPruebasPh}
+    </tbody>
+  </table>
+</div>
+
+        <div class="bloque">
+          <div class="titulo">Servicios Realizados</div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Línea</th>
+                <th>Pos</th>
+                <th>Descripción</th>
+                <th>Cantidad</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              ${htmlServicios}
+            </tbody>
+          </table>
+        </div>
+
+      </body>
+      </html>
+    `
+
+    const browser = await getBrowser()
+
+    context = await browser.newContext()
+
+    page = await context.newPage()
+
+    await page.setContent(html, {
+      waitUntil: 'load'
+    })
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true
+    })
+
+    const pdfPath =
+      `parte_operativo_${parte.numero_parte}_${Date.now()}.pdf`
+
+    const { error: pdfError } = await supabase.storage
+      .from(process.env.BUCKET_PDF)
+      .upload(pdfPath, pdfBuffer, {
+        contentType: 'application/pdf',
+        upsert: true
+      })
+
+    if (pdfError) throw pdfError
+
     const { error: errorUpdate } = await supabase
       .from('partes_operativos')
       .update({
         estado: 'cerrado',
-        finalizado_at: new Date().toISOString()
+        finalizado_at: new Date().toISOString(),
+        pdf_path: pdfPath
       })
       .eq('id', id)
 
     if (errorUpdate) throw errorUpdate
 
+    const { data: publicUrlData } = supabase.storage
+      .from(process.env.BUCKET_PDF)
+      .getPublicUrl(pdfPath)
+
     res.json({
       ok: true,
-      message: 'Parte cerrado correctamente'
+      pdf_url: publicUrlData.publicUrl
     })
 
   } catch (error) {
@@ -1624,6 +2068,12 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
       ok: false,
       error: error.message
     })
+
+  } finally {
+
+    if (page) await page.close().catch(() => {})
+    if (context) await context.close().catch(() => {})
+
   }
 })
 

@@ -30,7 +30,10 @@ function NavLink({ item }: { item: NavItem }) {
 }
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const navOperador: NavItem[] = [{ label: 'Parte PH', href: routes.operador.partePh }]
+  const navOperador: NavItem[] = [
+    { label: 'Parte PH', href: routes.operador.partePh },
+    { label: 'Partes Operativos', href: routes.operador.partesOperativos },
+  ]
 
   const navCoordinador: NavItem[] = [
     { label: 'Dashboard', href: routes.coordinador.dashboard },

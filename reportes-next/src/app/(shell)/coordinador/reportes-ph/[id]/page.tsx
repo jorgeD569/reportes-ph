@@ -13,7 +13,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { routes } from '@/lib/constants/routes'
 import { get, post } from '@/lib/api'
 import type { GetReportePhDetalleResponse, Parte } from '@/lib/types/reportes'
-import { formatDateDDMMYYYY, formatDateTimeEsAr } from '@/lib/date'
+import { formatDateTimeEsAr, formatFechaSoloDia } from '@/lib/date'
 import { reportePhState, reportePhStateLabel } from '@/lib/status'
 
 function sleepMs(ms: number) {
@@ -391,9 +391,9 @@ export default function CoordinadorReportePhDetallePage() {
     label="Fecha"
     value={
       parte?.fecha
-        ? formatDateTimeEsAr(parte.fecha)
+        ? formatFechaSoloDia(parte.fecha)
         : parte?.created_at
-        ? formatDateTimeEsAr(parte.created_at)
+        ? formatFechaSoloDia(parte.created_at)
         : '—'
     }
   />
