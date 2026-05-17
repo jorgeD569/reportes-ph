@@ -1343,6 +1343,290 @@ app.get('/consumibles/:id/movimientos', async (req, res) => {
   }
 })
 
+// =========================
+// PARTES OPERATIVOS
+// =========================
+
+// LISTAR PARTES
+app.get('/partes-operativos', async (req, res) => {
+  try {
+
+    const { data, error } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      partes: data
+    })
+
+  } catch (error) {
+
+    console.error('Error obteniendo partes operativos:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+// CREAR PARTE
+app.post('/partes-operativos', async (req, res) => {
+  try {
+
+    const {
+      pozo,
+      yacimiento = null,
+      operadora = null,
+      contratista = 'KOMPASS',
+      unidad_pesada = null,
+      salida_desde = null,
+      km = null,
+      operador_1 = null,
+      operador_2 = null,
+      operador_3 = null
+    } = req.body
+
+    if (!pozo) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Falta completar el pozo'
+      })
+    }
+
+    const { data, error } = await supabase
+      .from('partes_operativos')
+      .insert([{
+        pozo,
+        yacimiento,
+        operadora,
+        contratista,
+        unidad_pesada,
+        salida_desde,
+        km,
+        operador_1,
+        operador_2,
+        operador_3,
+        estado: 'abierto'
+      }])
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      parte: data
+    })
+
+  } catch (error) {
+
+    console.error('Error creando parte operativo:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+// OBTENER PARTE POR ID
+app.get('/partes-operativos/:id', async (req, res) => {
+  try {
+
+    const { id } = req.params
+
+    const { data, error } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      parte: data
+    })
+
+  } catch (error) {
+
+    console.error('Error obteniendo parte operativo:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+// ACTUALIZAR PARTE
+app.put('/partes-operativos/:id', async (req, res) => {
+  try {
+
+    const { id } = req.params
+
+    const { data: parteActual, error: errorParte } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorParte) throw errorParte
+
+    if (parteActual.estado === 'cerrado') {
+      return res.status(400).json({
+        ok: false,
+        error: 'El parte ya está cerrado y no se puede editar'
+      })
+    }
+
+    const { data, error } = await supabase
+      .from('partes_operativos')
+      .update({
+        ...req.body,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      parte: data
+    })
+
+  } catch (error) {
+
+    console.error('Error actualizando parte operativo:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+// GUARDAR SERVICIOS
+app.post('/partes-operativos/:id/servicios', async (req, res) => {
+  try {
+
+    const { id } = req.params
+    const { servicios } = req.body
+
+    if (!Array.isArray(servicios) || servicios.length === 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'No se recibieron servicios para guardar'
+      })
+    }
+
+    const { data: parte, error: errorParte } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorParte) throw errorParte
+
+    if (parte.estado === 'cerrado') {
+      return res.status(400).json({
+        ok: false,
+        error: 'El parte ya está cerrado'
+      })
+    }
+
+    await supabase
+      .from('partes_operativos_servicios')
+      .delete()
+      .eq('parte_id', id)
+
+    const payload = servicios.map((servicio) => ({
+      parte_id: id,
+      linea: servicio.codigo_servicio,
+      pos: servicio.pos,
+      codigo_servicio: servicio.codigo_servicio,
+      descripcion: servicio.descripcion,
+      cantidad: servicio.cantidad,
+      observaciones: servicio.observaciones || null
+    }))
+
+    const { data, error } = await supabase
+      .from('partes_operativos_servicios')
+      .insert(payload)
+      .select()
+
+    if (error) throw error
+
+    res.json({
+      ok: true,
+      servicios: data
+    })
+
+  } catch (error) {
+
+    console.error('Error guardando servicios:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
+// CERRAR PARTE
+app.post('/partes-operativos/:id/cerrar', async (req, res) => {
+  try {
+
+    const { id } = req.params
+
+    const { data: parte, error: errorParte } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorParte) throw errorParte
+
+    if (parte.estado === 'cerrado') {
+      return res.status(400).json({
+        ok: false,
+        error: 'El parte ya está cerrado'
+      })
+    }
+
+    const { error: errorUpdate } = await supabase
+      .from('partes_operativos')
+      .update({
+        estado: 'cerrado',
+        finalizado_at: new Date().toISOString()
+      })
+      .eq('id', id)
+
+    if (errorUpdate) throw errorUpdate
+
+    res.json({
+      ok: true,
+      message: 'Parte cerrado correctamente'
+    })
+
+  } catch (error) {
+
+    console.error('Error cerrando parte operativo:', error)
+
+    res.status(500).json({
+      ok: false,
+      error: error.message
+    })
+  }
+})
+
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
     if (browserInstance) await browserInstance.close()
