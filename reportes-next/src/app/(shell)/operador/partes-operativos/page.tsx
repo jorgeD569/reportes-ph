@@ -1,12 +1,30 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
+import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlowSteps'
+import { inputClass, labelClass } from '@/components/operador/parte-operativo-styles'
+import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { InlineMessage } from '@/components/ui/InlineMessage'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { post } from '@/lib/api'
+import { routes } from '@/lib/constants/routes'
+import { getFechaLocalHoy } from '@/lib/date'
+
+type CrearParteResponse = {
+  ok?: boolean
+  error?: string
+  parte?: { id: string }
+}
+
+const submitButtonClass =
+  'block h-12 w-full rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-6 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[240px]'
 
 export default function ParteOperativoPage() {
-
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const [form, setForm] = useState({
+    fecha: getFechaLocalHoy(),
     pozo: '',
     yacimiento: '',
     operadora: '',
@@ -16,32 +34,38 @@ export default function ParteOperativoPage() {
     km: '',
     operador_1: '',
     operador_2: '',
-    operador_3: ''
+    operador_3: '',
   })
 
+  function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    await generarParte()
+  }
+
   async function generarParte() {
+    if (!form.pozo.trim()) {
+      setError('El pozo es obligatorio.')
+      return
+    }
 
     try {
-
       setLoading(true)
+      setError(null)
 
-      const response = await fetch('http://localhost:3000/partes-operativos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(form)
-      })
+      const data = await post<CrearParteResponse>('/partes-operativos', form)
 
-      const data = await response.json()
-
-      if (!response.ok || !data.ok) {
+      if (!data.ok || !data.parte?.id) {
         throw new Error(data.error || 'Error creando parte')
       }
 
-      window.open(`/operador/partes-operativos/${data.parte.id}`, '_blank')
+      window.open(routes.operador.parteOperativo(data.parte.id), '_blank')
 
       setForm({
+        fecha: getFechaLocalHoy(),
         pozo: '',
         yacimiento: '',
         operadora: '',
@@ -51,100 +75,167 @@ export default function ParteOperativoPage() {
         km: '',
         operador_1: '',
         operador_2: '',
-        operador_3: ''
+        operador_3: '',
       })
-
-    } catch (error: any) {
-
-      alert(error.message)
-
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error creando parte')
     } finally {
-
       setLoading(false)
-
     }
   }
 
   return (
-    <div style={{ padding: 30 }}>
+    <div className="space-y-6">
+      <PageHeader
+        title="Nuevo parte operativo"
+        subtitle="Completá los datos iniciales. Se abrirá una ventana de carga sin menú lateral para continuar el flujo."
+      />
 
-      <h1>Nuevo Parte Operativo</h1>
+      <ParteOperativoFlowSteps current="alta" />
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: 15,
-        marginTop: 20
-      }}>
+      {error ? (
+        <InlineMessage kind="error" title="No se pudo crear el parte" description={error} />
+      ) : null}
 
-        <input
-          placeholder="Pozo"
-          value={form.pozo}
-          onChange={(e) => setForm({ ...form, pozo: e.target.value })}
-        />
+      <form id="crear-parte-operativo" onSubmit={onSubmit} className="space-y-6">
+        <Card>
+          <CardHeader>
+            <div>
+              <div className="text-sm font-semibold text-app">Datos del parte</div>
+              <div className="mt-1 text-sm text-muted">
+                Información general para iniciar el parte operativo en campo.
+              </div>
+            </div>
+          </CardHeader>
+          <CardBody className="pt-0">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className={labelClass} htmlFor="fecha">
+                  Fecha
+                </label>
+                <input
+                  id="fecha"
+                  type="date"
+                  className={inputClass}
+                  value={form.fecha}
+                  onChange={(e) => setField('fecha', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="pozo">
+                  Pozo *
+                </label>
+                <input
+                  id="pozo"
+                  className={inputClass}
+                  value={form.pozo}
+                  onChange={(e) => setField('pozo', e.target.value)}
+                  placeholder="Nombre del pozo"
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="yacimiento">
+                  Yacimiento
+                </label>
+                <input
+                  id="yacimiento"
+                  className={inputClass}
+                  value={form.yacimiento}
+                  onChange={(e) => setField('yacimiento', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="operadora">
+                  Operadora
+                </label>
+                <input
+                  id="operadora"
+                  className={inputClass}
+                  value={form.operadora}
+                  onChange={(e) => setField('operadora', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="unidad_pesada">
+                  Unidad pesada
+                </label>
+                <input
+                  id="unidad_pesada"
+                  className={inputClass}
+                  value={form.unidad_pesada}
+                  onChange={(e) => setField('unidad_pesada', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="salida_desde">
+                  Salida desde
+                </label>
+                <input
+                  id="salida_desde"
+                  className={inputClass}
+                  value={form.salida_desde}
+                  onChange={(e) => setField('salida_desde', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="km">
+                  KM
+                </label>
+                <input
+                  id="km"
+                  className={inputClass}
+                  value={form.km}
+                  onChange={(e) => setField('km', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="operador_1">
+                  Operador 1
+                </label>
+                <input
+                  id="operador_1"
+                  className={inputClass}
+                  value={form.operador_1}
+                  onChange={(e) => setField('operador_1', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="operador_2">
+                  Operador 2
+                </label>
+                <input
+                  id="operador_2"
+                  className={inputClass}
+                  value={form.operador_2}
+                  onChange={(e) => setField('operador_2', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className={labelClass} htmlFor="operador_3">
+                  Operador 3
+                </label>
+                <input
+                  id="operador_3"
+                  className={inputClass}
+                  value={form.operador_3}
+                  onChange={(e) => setField('operador_3', e.target.value)}
+                />
+              </div>
+            </div>
+          </CardBody>
+        </Card>
 
-        <input
-          placeholder="Yacimiento"
-          value={form.yacimiento}
-          onChange={(e) => setForm({ ...form, yacimiento: e.target.value })}
-        />
-
-        <input
-          placeholder="Operadora"
-          value={form.operadora}
-          onChange={(e) => setForm({ ...form, operadora: e.target.value })}
-        />
-
-        <input
-          placeholder="Unidad pesada"
-          value={form.unidad_pesada}
-          onChange={(e) => setForm({ ...form, unidad_pesada: e.target.value })}
-        />
-
-        <input
-          placeholder="Salida desde"
-          value={form.salida_desde}
-          onChange={(e) => setForm({ ...form, salida_desde: e.target.value })}
-        />
-
-        <input
-          placeholder="KM"
-          value={form.km}
-          onChange={(e) => setForm({ ...form, km: e.target.value })}
-        />
-
-        <input
-          placeholder="Operador 1"
-          value={form.operador_1}
-          onChange={(e) => setForm({ ...form, operador_1: e.target.value })}
-        />
-
-        <input
-          placeholder="Operador 2"
-          value={form.operador_2}
-          onChange={(e) => setForm({ ...form, operador_2: e.target.value })}
-        />
-
-        <input
-          placeholder="Operador 3"
-          value={form.operador_3}
-          onChange={(e) => setForm({ ...form, operador_3: e.target.value })}
-        />
-
-      </div>
-
-      <button
-        onClick={generarParte}
-        disabled={loading}
-        style={{
-          marginTop: 25,
-          padding: '12px 20px',
-          cursor: 'pointer'
-        }}
-      >
-        {loading ? 'Generando...' : 'Generar Parte'}
-      </button>
-
+        <Card>
+          <CardBody className="space-y-3">
+            <p className="text-sm text-muted">
+              Al confirmar se crea el parte y se abre la ventana de carga.
+            </p>
+            <button type="submit" disabled={loading} className={submitButtonClass}>
+              {loading ? 'Generando...' : 'Generar parte operativo'}
+            </button>
+          </CardBody>
+        </Card>
+      </form>
     </div>
   )
 }

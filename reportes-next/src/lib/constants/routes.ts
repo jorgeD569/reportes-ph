@@ -2,6 +2,10 @@ export const routes = {
   operador: {
     partePh: '/operador/parte-ph',
     partesOperativos: '/operador/partes-operativos',
+    parteOperativo: (id: string) =>
+      `/operador/partes-operativos/${encodeURIComponent(id)}`,
+    parteOperativoServicios: (id: string) =>
+      `/operador/partes-operativos/${encodeURIComponent(id)}/servicios`,
   },
   coordinador: {
     dashboard: '/coordinador/dashboard',

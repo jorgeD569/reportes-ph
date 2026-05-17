@@ -48,6 +48,15 @@ export function parsePlainOrDisplayDateToLocalDate(
   return parseLocalDate(s) ?? parseLocalDate(s.slice(0, 10)) ?? parseDdMmYyyySlash(s)
 }
 
+/** Fecha de hoy en calendario local (YYYY-MM-DD), sin `toISOString()` (evita desfase TZ). */
+export function getFechaLocalHoy(): string {
+  const hoy = new Date()
+  const year = hoy.getFullYear()
+  const month = String(hoy.getMonth() + 1).padStart(2, '0')
+  const day = String(hoy.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 /** YYYY-MM-DD en calendario local (para `<input type="date">`). */
 function toIsoLocalDateString(d: Date): string {
   const y = d.getFullYear()
