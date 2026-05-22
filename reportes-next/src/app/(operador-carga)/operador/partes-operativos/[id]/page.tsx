@@ -207,12 +207,14 @@ export default function ParteOperativoDetallePage() {
             >
               {saving ? 'Guardando...' : 'Guardar y continuar'}
             </button>
-            <Link
-              href={routes.operador.parteOperativoServicios(id)}
-              className={btnSecondaryClass}
+            <button
+               type="button"
+               className={btnSecondaryClass}
+               onClick={guardarObservaciones}
+               disabled={saving}
             >
-              Ir a servicios
-            </Link>
+               {saving ? 'Guardando...' : 'Ir a servicios'}
+            </button>
           </div>
         </CardBody>
       </Card>

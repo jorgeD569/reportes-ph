@@ -74,6 +74,35 @@
     return String(fecha)
   }
 
+  function getFechaLocalArgentina() {
+    const hoy = new Date()
+    const year = hoy.getFullYear()
+    const month = String(hoy.getMonth() + 1).padStart(2, '0')
+    const day = String(hoy.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  function resolveParteOperativoPdfPath(parte) {
+    if (!parte) return null
+    const candidates = [
+      parte.pdf_path,
+      parte.reporte_pdf_path,
+      parte.parte_pdf_path,
+      parte.parte_operativo_pdf_path,
+    ]
+    for (const value of candidates) {
+      if (typeof value === 'string' && value.trim()) return value.trim()
+    }
+    return null
+  }
+
+  function buildParteOperativoPdfUrl(pdfPath) {
+    const bucket = process.env.BUCKET_PDF
+    if (!pdfPath || !bucket) return null
+    const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(pdfPath)
+    return publicUrlData?.publicUrl || null
+  }
+
 async function registrarMovimiento({
   activo_id,
   tipo_movimiento,
@@ -1536,9 +1565,40 @@ app.get('/partes-operativos', async (req, res) => {
 
     if (error) throw error
 
+    const partes = (data || []).map((parte) => {
+      const pdf_path = resolveParteOperativoPdfPath(parte)
+      const pdf_url = buildParteOperativoPdfUrl(pdf_path)
+
+      if (String(parte.numero_parte) === '14') {
+        console.log('DEBUG GET PARTES OPERATIVOS ROW', {
+          id: parte.id,
+          numero_parte: parte.numero_parte,
+          estado: parte.estado,
+          pdf_path: parte.pdf_path,
+          reporte_pdf_path: parte.reporte_pdf_path,
+          parte_pdf_path: parte.parte_pdf_path,
+          resolved_pdf_path: pdf_path,
+          pdf_url,
+        })
+      }
+
+      return {
+        ...parte,
+        unidad: parte.unidad_pesada ?? null,
+        pdf_path,
+        pdf_url,
+      }
+    })
+
+    partes.sort((a, b) => {
+      const fa = a.fecha || a.created_at || ''
+      const fb = b.fecha || b.created_at || ''
+      return String(fb).localeCompare(String(fa))
+    })
+
     res.json({
       ok: true,
-      partes: data
+      partes,
     })
 
   } catch (error) {
@@ -1558,6 +1618,7 @@ app.post('/partes-operativos', async (req, res) => {
 
     const {
       pozo,
+      fecha,
       yacimiento = null,
       operadora = null,
       contratista = 'KOMPASS',
@@ -1568,6 +1629,11 @@ app.post('/partes-operativos', async (req, res) => {
       operador_2 = null,
       operador_3 = null
     } = req.body
+
+    const fechaParte =
+      typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha.trim())
+        ? fecha.trim()
+        : getFechaLocalArgentina()
 
     if (!pozo) {
       return res.status(400).json({
@@ -1580,6 +1646,7 @@ app.post('/partes-operativos', async (req, res) => {
       .from('partes_operativos')
       .insert([{
         pozo,
+        fecha: fechaParte,
         yacimiento,
         operadora,
         contratista,
@@ -1817,198 +1884,292 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
       )
     }
 
+    const logoKompassUrl =
+      'https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/logos/logo.png'
+
     const htmlServicios = (servicios || [])
-      .map((s) => `
+      .map(
+        (s) => `
         <tr>
-          <td>${s.codigo_servicio || ''}</td>
-          <td>${s.pos || ''}</td>
+          <td class="center">${s.codigo_servicio || ''}</td>
+          <td class="center">${s.pos || ''}</td>
           <td>${s.descripcion || ''}</td>
-          <td>${s.cantidad || 0}</td>
+          <td class="center">${s.cantidad ?? 0}</td>
         </tr>
-      `)
+      `
+      )
       .join('')
 
-      const htmlPruebasPh = (pruebasPh || [])
-        .map((link) => {
-          const ph = partesPhById[link.reporte_ph_id] || link
-          const esNegativa =
-            String(ph.tipo_prueba || link.tipo_prueba || '')
-              .trim()
-              .toLowerCase() === 'negativa'
+    const htmlPruebasPh = (pruebasPh || [])
+      .map((link) => {
+        const ph = partesPhById[link.reporte_ph_id] || link
+        const esNegativa =
+          String(ph.tipo_prueba || link.tipo_prueba || '')
+            .trim()
+            .toLowerCase() === 'negativa'
 
-          const presEntrampada = ph.presion_entrampada || ''
-          const presEstabilizada = esNegativa
-            ? ph.presion_testigo_inicial || ''
-            : ph.presion_estabilizada || ''
-          const hsEstab = esNegativa
-            ? ph.hs_inicial_negativa || ''
-            : ph.hs_estabilizada || ''
-          const presFinal = esNegativa
-            ? ph.presion_testigo_final || ''
-            : ph.presion_final || ''
-          const hsFinal = esNegativa
-            ? ph.hs_final_negativa || ''
-            : ph.hs_final || ''
-          const resultado = ph.resultado_ensayo || ''
-          const valvula = link.valvula || ph.elemento_ensayar || ''
+        const presEntrampada = ph.presion_entrampada || ''
+        const presEstabilizada = esNegativa
+          ? ph.presion_testigo_inicial || ''
+          : ph.presion_estabilizada || ''
+        const hsEstab = esNegativa
+          ? ph.hs_inicial_negativa || ''
+          : ph.hs_estabilizada || ''
+        const presFinal = esNegativa
+          ? ph.presion_testigo_final || ''
+          : ph.presion_final || ''
+        const hsFinal = esNegativa
+          ? ph.hs_final_negativa || ''
+          : ph.hs_final || ''
+        const resultado = ph.resultado_ensayo || ''
+        const valvula = link.valvula || ph.elemento_ensayar || ''
 
-          return `
-    <tr>
-      <td>${valvula}</td>
-      <td>${presEntrampada}</td>
-      <td>${presEstabilizada}</td>
-      <td>${hsEstab}</td>
-      <td>${presFinal}</td>
-      <td>${hsFinal}</td>
-      <td>${resultado}</td>
-    </tr>
-  `
-        })
-        .join('')
+        const resultadoNormalizado = String(resultado || '').trim().toUpperCase()
+        const estadoClass =
+          resultadoNormalizado === 'POSITIVO'
+            ? 'estado-positivo'
+            : resultadoNormalizado === 'NEGATIVO'
+              ? 'estado-negativo'
+              : ''
+
+        return `
+        <tr>
+          <td>${valvula}</td>
+          <td class="center">${presEntrampada}</td>
+          <td class="center">${presEstabilizada}</td>
+          <td class="center">${hsEstab}</td>
+          <td class="center">${presFinal}</td>
+          <td class="center">${hsFinal}</td>
+          <td class="${estadoClass}">${resultado}</td>
+        </tr>
+      `
+      })
+      .join('')
 
     const html = `
       <!DOCTYPE html>
       <html lang="es">
       <head>
         <meta charset="UTF-8" />
-
         <style>
-
+          @page { size: A4; margin: 8mm; }
+          * { box-sizing: border-box; }
           body {
-            font-family: Arial;
-            padding: 30px;
-            color: #111;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9px;
+            line-height: 1.25;
+            color: #000;
+            margin: 0;
+            padding: 0;
           }
-
-          h1 {
-            text-align: center;
-            margin-bottom: 30px;
-          }
-
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            table-layout: fixed;
           }
-
           th, td {
             border: 1px solid #000;
-            padding: 8px;
-            font-size: 12px;
+            padding: 2px 4px;
+            vertical-align: middle;
+            font-size: 9px;
           }
-
           th {
-            background: #ddd;
+            background: #e6e6e6;
+            font-weight: 700;
+            text-align: center;
           }
-
-          .bloque {
-            margin-top: 25px;
+          .center { text-align: center; }
+          .header-table td { padding: 0; vertical-align: middle; }
+          .logo-cell { width: 20%; text-align: center; padding: 3px; }
+          .logo-cell img {
+            max-width: 100%;
+            max-height: 52px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto;
           }
-
-          .titulo {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
+          .title-cell {
+            width: 52%;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            padding: 6px 4px;
           }
-
-          .obs {
+          .meta-cell { width: 28%; padding: 0; }
+          .meta-inner th { width: 42%; font-size: 8px; padding: 2px 3px; }
+          .meta-inner td { font-size: 9px; font-weight: 700; text-align: center; }
+          .section-bar {
+            margin-top: 5px;
             border: 1px solid #000;
-            min-height: 120px;
-            padding: 10px;
+            background: #d9d9d9;
+            font-weight: 800;
+            font-size: 9px;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 3px 4px;
+          }
+          .info-table .lbl {
+            background: #f2f2f2;
+            font-weight: 700;
+            font-size: 8px;
+            text-transform: uppercase;
+          }
+          .info-table td.val { font-size: 9px; }
+          .data-table thead th, .ph-table thead th { font-size: 8px; padding: 3px 2px; }
+          .data-table tbody td, .ph-table tbody td { font-size: 9px; }
+          .estado-positivo {
+            background: #92d050;
+            color: #000;
+            font-weight: 700;
+            text-align: center;
+          }
+          .estado-negativo {
+            background: #c00000;
+            color: #fff;
+            font-weight: 700;
+            text-align: center;
+          }
+          .obs-box {
+            border: 1px solid #000;
+            min-height: 72px;
+            padding: 5px 6px;
             white-space: pre-wrap;
+            font-size: 9px;
+          }
+          .firmas-table { margin-top: 8px; }
+          .firmas-table td {
+            height: 48px;
+            vertical-align: bottom;
+            text-align: center;
+            font-size: 8px;
+            font-weight: 700;
+            padding-bottom: 4px;
+          }
+          .firma-linea {
+            display: block;
+            border-top: 1px solid #000;
+            margin: 0 8px 18px;
           }
 
-        </style>
+          .firma-img {
+            max-width: 130px;
+            max-height: 40px;
+            object-fit: contain;
+            display: block;
+            margin: 0 auto 2px;
+          }
+        </style>  
       </head>
-
       <body>
+        <table class="header-table">
+          <tr>
+            <td class="logo-cell" rowspan="2">
+              <img src="${logoKompassUrl}" alt="Kompass" />
+            </td>
+            <td class="title-cell" rowspan="2">PARTE DE OPERACIONES</td>
+            <td class="meta-cell">
+              <table class="meta-inner">
+                <tr>
+                  <th>N° PARTE</th>
+                  <td>${parte.numero_parte ?? ''}</td>
+                </tr>
+                <tr>
+                  <th>FECHA</th>
+                  <td>${formatFechaPdf(parte.fecha || parte.created_at || '')}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
 
-        <h1>PARTE OPERATIVO</h1>
+        <div class="section-bar">Información general</div>
+        <table class="info-table">
+          <tr>
+            <td class="lbl center">Pozo</td>
+            <td class="val">${parte.pozo || ''}</td>
+            <td class="lbl center">Yacimiento</td>
+            <td class="val">${parte.yacimiento || ''}</td>
+            <td class="lbl center">Operadora</td>
+            <td class="val">${parte.operadora || ''}</td>
+            <td class="lbl center">Contratista</td>
+            <td class="val">${parte.contratista || 'KOMPASS'}</td>
+          </tr>
+          <tr>
+            <td class="lbl center">Unidad pesada</td>
+            <td class="val">${parte.unidad_pesada || ''}</td>
+            <td class="lbl center">Salida desde</td>
+            <td class="val">${parte.salida_desde || ''}</td>
+            <td class="lbl center">Km a pozo</td>
+            <td class="val" colspan="3">${parte.km || ''}</td>
+          </tr>
+          <tr>
+            <td class="lbl center">Operador 1</td>
+            <td class="val">${parte.operador_1 || ''}</td>
+            <td class="lbl center">Operador 2</td>
+            <td class="val">${parte.operador_2 || ''}</td>
+            <td class="lbl center">Operador 3</td>
+            <td class="val">${parte.operador_3 || ''}</td>
+            <td class="lbl center"></td>
+            <td class="val"></td>
+          </tr>
+        </table>
 
-        <div class="bloque">
-          <div class="titulo">Información General</div>
-
-          <table>
+        <div class="section-bar">Servicios realizados</div>
+        <table class="data-table">
+          <thead>
             <tr>
-              <th>N° Parte</th>
-              <td>${parte.numero_parte || ''}</td>
-
-              <th>Fecha</th>
-              <td>${formatFechaPdf(parte.fecha || parte.created_at || '')}</td>
+              <th style="width:8%">Línea</th>
+              <th style="width:6%">Pos.</th>
+              <th>Descripción</th>
+              <th style="width:10%">Cant.</th>
             </tr>
+          </thead>
+          <tbody>
+            ${htmlServicios || '<tr><td colspan="4" class="center">—</td></tr>'}
+          </tbody>
+        </table>
 
+        <div class="section-bar">Pruebas hidráulicas</div>
+        <table class="ph-table">
+          <thead>
             <tr>
-              <th>Pozo</th>
-              <td>${parte.pozo || ''}</td>
-
-              <th>Yacimiento</th>
-              <td>${parte.yacimiento || ''}</td>
+              <th style="width:22%">Válvula</th>
+              <th style="width:12%">Presión entrampada</th>
+              <th style="width:12%">Estabiliza</th>
+              <th style="width:10%">Hs estab.</th>
+              <th style="width:12%">Pres. final</th>
+              <th style="width:10%">Hs final</th>
+              <th style="width:12%">Estado</th>
             </tr>
+          </thead>
+          <tbody>
+            ${htmlPruebasPh || '<tr><td colspan="7" class="center">—</td></tr>'}
+          </tbody>
+        </table>
 
-            <tr>
-              <th>Operadora</th>
-              <td>${parte.operadora || ''}</td>
+        <div class="section-bar">Observaciones</div>
+        <div class="obs-box">${parte.observaciones || ''}</div>
 
-              <th>Contratista</th>
-              <td>${parte.contratista || ''}</td>
-            </tr>
+        <table class="firmas-table">
+  <tr>
+    <td>
+      <img src="https://ydydsdekktvvrafwajwi.supabase.co/storage/v1/object/public/firmas/firma-adalberto.png" class="firma-img" />
+      <span class="firma-linea"></span>
+      Supervisor Kompass
+    </td>
 
-            <tr>
-              <th>Unidad</th>
-              <td colspan="3">${parte.unidad_pesada || ''}</td>
-            </tr>
-          </table>
-        </div>
+    <td>
+      <span class="firma-linea"></span>
+      Supervisor YPF
+    </td>
 
-        <div class="bloque">
-          <div class="titulo">Observaciones</div>
-
-          <div class="obs">
-${parte.observaciones || ''}
-          </div>
-        </div>
-
-        <div class="bloque">
-  <div class="titulo">Pruebas Hidráulicas</div>
-
-  <table>
-    <thead>
-      <tr>
-        <th>Válvula / Elemento</th>
-        <th>Pres. Entrampada</th>
-        <th>Pres. Estabilizada</th>
-        <th>Hs Estab.</th>
-        <th>Pres. Final</th>
-        <th>Hs Final</th>
-        <th>Resultado</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      ${htmlPruebasPh}
-    </tbody>
-  </table>
-</div>
-
-        <div class="bloque">
-          <div class="titulo">Servicios Realizados</div>
-
-          <table>
-            <thead>
-              <tr>
-                <th>Línea</th>
-                <th>Pos</th>
-                <th>Descripción</th>
-                <th>Cantidad</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              ${htmlServicios}
-            </tbody>
-          </table>
-        </div>
-
+    <td>
+      <span class="firma-linea"></span>
+      Operador
+    </td>
+  </tr>
+</table>
       </body>
       </html>
     `
@@ -2025,7 +2186,13 @@ ${parte.observaciones || ''}
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
-      printBackground: true
+      printBackground: true,
+      margin: {
+        top: '8mm',
+        right: '8mm',
+        bottom: '8mm',
+        left: '8mm',
+      },
     })
 
     const pdfPath =
@@ -2051,13 +2218,25 @@ ${parte.observaciones || ''}
 
     if (errorUpdate) throw errorUpdate
 
-    const { data: publicUrlData } = supabase.storage
-      .from(process.env.BUCKET_PDF)
-      .getPublicUrl(pdfPath)
+    const { data: parteActualizado, error: errorRefetch } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorRefetch) {
+      console.warn('DEBUG CERRAR PARTE: no se pudo re-leer el parte', errorRefetch)
+    } else if (String(parteActualizado?.numero_parte) === '14') {
+      console.log('DEBUG CERRAR PARTE AFTER UPDATE', parteActualizado)
+    }
+
+    const pdf_url = buildParteOperativoPdfUrl(pdfPath)
 
     res.json({
       ok: true,
-      pdf_url: publicUrlData.publicUrl
+      pdf_url,
+      pdf_path: pdfPath,
+      estado: 'cerrado',
     })
 
   } catch (error) {

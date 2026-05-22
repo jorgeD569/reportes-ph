@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlowSteps'
-import { btnPrimaryClass, btnSecondaryClass, inputClass } from '@/components/operador/parte-operativo-styles'
+import { btnSecondaryClass, inputClass } from '@/components/operador/parte-operativo-styles'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
@@ -22,6 +22,9 @@ type CerrarParteResponse = {
   pdf_url?: string
   error?: string
 }
+
+const btnPrimaryClass =
+  'inline-flex h-11 min-w-[220px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60'
 
 const serviciosBase = [
   { codigo: '10', pos: '1', descripcion: 'UNIDAD PESADA - (Op/Ay/Resc)' },
@@ -157,18 +160,18 @@ export default function ServiciosParteOperativoPage() {
             </tbody>
           </ModernTable>
 
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={guardarServicios}
-              disabled={loading}
-              className={btnPrimaryClass}
-            >
-              {loading ? 'Cerrando parte...' : 'Cerrar parte y generar PDF'}
-            </button>
+          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:flex-wrap sm:items-center">
             <Link href={routes.operador.parteOperativo(id)} className={btnSecondaryClass}>
               Volver a observaciones
             </Link>
+            <button
+              type="button"
+              onClick={() => void guardarServicios()}
+              disabled={loading}
+              className={btnPrimaryClass}
+            >
+              {loading ? 'Generando PDF...' : 'Cerrar parte y generar PDF'}
+            </button>
           </div>
         </CardBody>
       </Card>

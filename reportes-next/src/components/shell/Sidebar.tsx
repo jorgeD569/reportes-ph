@@ -10,13 +10,39 @@ type NavItem = {
   href: string
 }
 
-function NavLink({ item }: { item: NavItem }) {
+/** Rutas de menú sin hijos en la URL: solo coincidencia exacta (evita conflictos entre /operador/parte-ph y /operador/partes-operativos). */
+const EXACT_MATCH_HREFS = new Set<string>([
+  routes.operador.partePh,
+  routes.operador.partesOperativos,
+  routes.coordinador.dashboard,
+  routes.coordinador.reportesPh,
+  routes.coordinador.partesOperativos,
+  routes.coordinador.inventario.activos,
+  routes.coordinador.inventario.consumibles,
+  routes.coordinador.inventario.gestion,
+])
+
+function isNavActive(pathname: string, href: string) {
+  if (pathname === href) return true
+  if (EXACT_MATCH_HREFS.has(href)) return false
+  return pathname.startsWith(`${href}/`)
+}
+
+function NavLink({
+  item,
+  onNavigate,
+}: {
+  item: NavItem
+  onNavigate?: () => void
+}) {
   const pathname = usePathname()
-  const active = pathname === item.href || pathname.startsWith(item.href + '/')
+  const active = isNavActive(pathname, item.href)
 
   return (
     <Link
       href={item.href}
+      prefetch={item.href === routes.operador.partePh}
+      onClick={() => onNavigate?.()}
       className={cn(
         'flex items-center justify-between rounded-xl px-3 py-2 text-sm font-semibold transition',
         active
@@ -38,6 +64,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navCoordinador: NavItem[] = [
     { label: 'Dashboard', href: routes.coordinador.dashboard },
     { label: 'Reportes PH', href: routes.coordinador.reportesPh },
+    { label: 'Partes Operativos', href: routes.coordinador.partesOperativos },
     { label: 'Activos', href: routes.coordinador.inventario.activos },
     { label: 'Consumibles', href: routes.coordinador.inventario.consumibles },
     { label: 'Gestión', href: routes.coordinador.inventario.gestion },
@@ -60,9 +87,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
             Operador
           </div>
-          <div className="flex flex-col gap-1" onClick={onNavigate}>
+          <div className="flex flex-col gap-1">
             {navOperador.map((item) => (
-              <NavLink key={item.href} item={item} />
+              <NavLink key={item.href} item={item} onNavigate={onNavigate} />
             ))}
           </div>
         </div>
@@ -71,9 +98,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
             Coordinador
           </div>
-          <div className="flex flex-col gap-1" onClick={onNavigate}>
+          <div className="flex flex-col gap-1">
             {navCoordinador.map((item) => (
-              <NavLink key={item.href} item={item} />
+              <NavLink key={item.href} item={item} onNavigate={onNavigate} />
             ))}
           </div>
         </div>
@@ -83,4 +110,3 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     </aside>
   )
 }
-
