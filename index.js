@@ -638,7 +638,7 @@ async function registrarMovimiento({
       .logo-box img {
         width: 100%;
         max-width: 100%;
-        max-height: 140px;
+        max-height: 220px;
         object-fit: contain;
         display: block;
       }
@@ -1980,10 +1980,10 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
           }
           .center { text-align: center; }
           .header-table td { padding: 0; vertical-align: middle; }
-          .logo-cell { width: 20%; text-align: center; padding: 3px; }
+          .logo-cell { width: 26%; text-align: center; padding: 2px; }
           .logo-cell img {
-            max-width: 100%;
-            max-height: 52px;
+            max-width: 115%;
+            max-height: 70px;
             object-fit: contain;
             display: block;
             margin: 0 auto;
