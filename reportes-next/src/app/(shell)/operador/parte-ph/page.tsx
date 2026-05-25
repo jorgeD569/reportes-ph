@@ -1,6 +1,8 @@
 'use client'
 
 import * as React from 'react'
+import { Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { LoadingState } from '@/components/ui/LoadingState'
@@ -17,6 +19,12 @@ import {
   toInputDate,
 } from '@/lib/date'
 import { normalizeUserError } from '@/lib/user-errors'
+import {
+  hasParteOperativoPrefill,
+  parsePartePhPrefillFromSearchParams,
+  partePhFormFieldsFromPrefill,
+  type PartePhPrefill,
+} from '@/lib/parte-ph-prefill'
 import { vencimientoLabel } from '@/lib/status'
 import { vencimientoState } from '@/lib/vencimientos'
 
@@ -63,11 +71,19 @@ function recalcularNegativa(
   }
 }
 
+const DEFAULT_FLUIDO_UTILIZADO = 'Agua limpia'
+const DEFAULT_EQUIPO_SERVICIO = 'Sin equipo'
+
 const inputClass =
   'h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 disabled:opacity-60'
 const labelClass = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted'
 const textareaClass =
   'min-h-[100px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 disabled:opacity-60'
+
+function pickField(loaded: string | null | undefined, fallback: string): string {
+  const trimmed = (loaded ?? '').trim()
+  return trimmed || fallback
+}
 
 type GuardarParteResponse = {
   ok?: boolean
@@ -76,18 +92,20 @@ type GuardarParteResponse = {
   parte?: { id?: string }
 }
 
-function initialFormValues() {
+type PartePhFormValues = ReturnType<typeof createEmptyFormValues>
+
+function createEmptyFormValues() {
   return {
     reporte_numero: '',
     fecha: '',
     cliente: '',
-    equipo_general: '',
+    equipo_general: DEFAULT_EQUIPO_SERVICIO,
     yacimiento: '',
     pozo: '',
     tipo_prueba: 'positiva' as 'positiva' | 'negativa',
     presion_ensayo: '',
     tiempo_ensayo: '',
-    fluido_utilizado: '',
+    fluido_utilizado: DEFAULT_FLUIDO_UTILIZADO,
     resultado_ensayo: '',
     presion_estabilizada: '',
     hs_estabilizada: '',
@@ -113,7 +131,51 @@ function initialFormValues() {
   }
 }
 
+function initialFormValues(
+  prefill?: ReturnType<typeof partePhFormFieldsFromPrefill>,
+  existing?: Partial<PartePhFormValues>
+): PartePhFormValues {
+  const base = createEmptyFormValues()
+  return {
+    ...base,
+    reporte_numero: pickField(prefill?.reporte_numero ?? existing?.reporte_numero, base.reporte_numero),
+    fecha: pickField(prefill?.fecha ?? existing?.fecha, base.fecha),
+    cliente: pickField(prefill?.cliente ?? existing?.cliente, base.cliente),
+    yacimiento: pickField(prefill?.yacimiento ?? existing?.yacimiento, base.yacimiento),
+    pozo: pickField(prefill?.pozo ?? existing?.pozo, base.pozo),
+    fluido_utilizado: pickField(existing?.fluido_utilizado, base.fluido_utilizado),
+    equipo_general: pickField(existing?.equipo_general, base.equipo_general),
+  }
+}
+
+/** Tras guardar: vacío completo, o datos generales del parte operativo + defaults. */
+function getFormStateAfterSave(
+  isFromParteOperativo: boolean,
+  prefill: PartePhPrefill
+): PartePhFormValues {
+  if (!isFromParteOperativo) {
+    return initialFormValues()
+  }
+  return initialFormValues(partePhFormFieldsFromPrefill(prefill))
+}
+
 export default function OperadorPartePhPage() {
+  return (
+    <Suspense fallback={<LoadingState label="Cargando formulario PH…" />}>
+      <OperadorPartePhPageContent />
+    </Suspense>
+  )
+}
+
+function OperadorPartePhPageContent() {
+  const searchParams = useSearchParams()
+  const prefillFromUrl = React.useMemo(
+    () => parsePartePhPrefillFromSearchParams(searchParams),
+    [searchParams]
+  )
+  const isFromParteOperativo = Boolean(searchParams.get('parte_operativo_id')?.trim())
+  const hasPrefillFromParteOperativo = hasParteOperativoPrefill(prefillFromUrl)
+
   const [loadingEquipos, setLoadingEquipos] = React.useState(true)
   const [equiposError, setEquiposError] = React.useState<string | null>(null)
   const [unidades, setUnidades] = React.useState<Activo[]>([])
@@ -122,7 +184,11 @@ export default function OperadorPartePhPage() {
   const [unidadId, setUnidadId] = React.useState('')
   const [wikaId, setWikaId] = React.useState('')
 
-  const [f, setF] = React.useState(() => initialFormValues())
+  const [f, setF] = React.useState(() =>
+    hasPrefillFromParteOperativo
+      ? initialFormValues(partePhFormFieldsFromPrefill(prefillFromUrl))
+      : initialFormValues()
+  )
 
   const [foto1, setFoto1] = React.useState<File | null>(null)
   const [foto2, setFoto2] = React.useState<File | null>(null)
@@ -288,7 +354,7 @@ export default function OperadorPartePhPage() {
   function resetFormulario() {
     setFormError(null)
     /* No limpiar formSuccess aquí: tras guardar ok se muestra el id y resetFormulario corre en el mismo tick. */
-    setF(initialFormValues())
+    setF(getFormStateAfterSave(isFromParteOperativo, prefillFromUrl))
     setUnidadId('')
     setWikaId('')
     if (preview1) URL.revokeObjectURL(preview1)

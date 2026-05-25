@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlowSteps'
@@ -19,10 +18,13 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get, put } from '@/lib/api'
 import { routes } from '@/lib/constants/routes'
+import { openPartePhWithPrefill, type PartePhPrefill } from '@/lib/parte-ph-prefill'
 
 type ParteOperativo = {
   id: string
   numero_parte?: number | string | null
+  reporte_numero?: number | string | null
+  fecha?: string | null
   pozo?: string | null
   yacimiento?: string | null
   operadora?: string | null
@@ -30,6 +32,25 @@ type ParteOperativo = {
   unidad_pesada?: string | null
   estado?: string | null
   observaciones?: string | null
+}
+
+function buildPrefillFromParte(parte: ParteOperativo): PartePhPrefill {
+  const reporteNumero =
+    parte.reporte_numero != null && String(parte.reporte_numero).trim() !== ''
+      ? String(parte.reporte_numero)
+      : parte.numero_parte != null
+        ? String(parte.numero_parte)
+        : ''
+
+  return {
+    parte_operativo_id: parte.id,
+    reporte_numero: reporteNumero,
+    fecha: parte.fecha ?? '',
+    pozo: parte.pozo ?? '',
+    yacimiento: parte.yacimiento ?? '',
+    cliente: parte.operadora ?? '',
+    contratista: parte.contratista ?? '',
+  }
 }
 
 type GetParteOperativoResponse = {
@@ -112,12 +133,18 @@ export default function ParteOperativoDetallePage() {
     )
   }
 
+  const parteCargado = parte
+
   const estadoVariant =
-    parte.estado === 'cerrado'
+    parteCargado.estado === 'cerrado'
       ? 'success'
-      : parte.estado === 'abierto'
+      : parteCargado.estado === 'abierto'
       ? 'info'
       : 'neutral'
+
+  function abrirFormularioPh() {
+    openPartePhWithPrefill(buildPrefillFromParte(parteCargado))
+  }
 
   return (
     <div className="space-y-6">
@@ -168,9 +195,13 @@ export default function ParteOperativoDetallePage() {
           </div>
         </CardHeader>
         <CardBody className="flex flex-wrap gap-3 pt-0">
-          <Link href={routes.operador.partePh} className={btnSecondaryClass} target="_blank">
+          <button
+            type="button"
+            className={btnSecondaryClass}
+            onClick={abrirFormularioPh}
+          >
             Abrir formulario PH
-          </Link>
+          </button>
         </CardBody>
       </Card>
 

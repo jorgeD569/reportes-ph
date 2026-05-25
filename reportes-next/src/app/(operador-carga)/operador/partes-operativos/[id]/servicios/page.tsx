@@ -7,8 +7,9 @@ import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlo
 import { btnSecondaryClass, inputClass } from '@/components/operador/parte-operativo-styles'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
-import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
+import { Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
+import { cn } from '@/lib/cn'
 import { post } from '@/lib/api'
 import { routes } from '@/lib/constants/routes'
 
@@ -24,7 +25,12 @@ type CerrarParteResponse = {
 }
 
 const btnPrimaryClass =
-  'inline-flex h-11 min-w-[220px] items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60'
+  'inline-flex h-11 w-full min-w-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[220px]'
+
+const cantidadInputClass = cn(
+  inputClass,
+  'w-24 max-w-[120px] shrink-0 text-center tabular-nums'
+)
 
 const serviciosBase = [
   { codigo: '10', pos: '1', descripcion: 'UNIDAD PESADA - (Op/Ay/Resc)' },
@@ -38,6 +44,28 @@ const serviciosBase = [
   { codigo: '10', pos: '37', descripcion: 'Torqueo hasta 5 bridas - Cargo básico' },
   { codigo: '10', pos: '39', descripcion: 'Torqueo brida/Valvula adicional' },
 ]
+
+function ServicioCantidadInput({
+  pos,
+  value,
+  onChange,
+}: {
+  pos: string
+  value: string
+  onChange: (pos: string, value: string) => void
+}) {
+  return (
+    <input
+      type="number"
+      min="0"
+      inputMode="numeric"
+      aria-label={`Cantidad posición ${pos}`}
+      className={cantidadInputClass}
+      value={value}
+      onChange={(e) => onChange(pos, e.target.value)}
+    />
+  )
+}
 
 export default function ServiciosParteOperativoPage() {
   const params = useParams()
@@ -108,7 +136,7 @@ export default function ServiciosParteOperativoPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-none space-y-6 lg:max-w-6xl">
       <PageHeader
         title="Servicios del parte"
         subtitle="Cargá cantidades y cerrá el parte para generar el PDF operativo."
@@ -131,37 +159,77 @@ export default function ServiciosParteOperativoPage() {
           </div>
         </CardHeader>
         <CardBody className="pt-0">
-          <ModernTable>
-            <thead>
-              <tr>
-                <Th>Línea</Th>
-                <Th>Pos</Th>
-                <Th>Servicio</Th>
-                <Th className="w-28">Cantidad</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {serviciosBase.map((servicio) => (
-                <tr key={servicio.pos} className="border-t border-border">
-                  <Td>{servicio.codigo}</Td>
-                  <Td>{servicio.pos}</Td>
-                  <Td>{servicio.descripcion}</Td>
-                  <Td>
-                    <input
-                      type="number"
-                      min="0"
-                      className={inputClass}
-                      value={cantidades[servicio.pos] || ''}
-                      onChange={(e) => cambiarCantidad(servicio.pos, e.target.value)}
-                    />
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </ModernTable>
+          {/* Mobile / tablet: cards */}
+          <ul className="space-y-3 lg:hidden">
+            {serviciosBase.map((servicio) => (
+              <li
+                key={servicio.pos}
+                className="rounded-2xl border border-border bg-surface p-4 shadow-[var(--shadow-app)]"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                  <span className="rounded-lg bg-surface-2 px-2 py-1">Línea {servicio.codigo}</span>
+                  <span className="rounded-lg bg-surface-2 px-2 py-1">Pos {servicio.pos}</span>
+                </div>
+                <p className="mt-3 text-sm font-medium leading-snug text-app">
+                  {servicio.descripcion}
+                </p>
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-border pt-4">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+                    Cantidad
+                  </span>
+                  <ServicioCantidadInput
+                    pos={servicio.pos}
+                    value={cantidades[servicio.pos] || ''}
+                    onChange={cambiarCantidad}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
 
-          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:flex-wrap sm:items-center">
-            <Link href={routes.operador.parteOperativo(id)} className={btnSecondaryClass}>
+          {/* Desktop: tabla con columnas proporcionadas */}
+          <div className="hidden overflow-x-auto rounded-2xl border border-border lg:block">
+            <table className="w-full table-fixed border-collapse bg-surface">
+              <colgroup>
+                <col className="w-[4.5rem]" />
+                <col className="w-[4.5rem]" />
+                <col />
+                <col className="w-[8.5rem]" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <Th>Línea</Th>
+                  <Th>Pos</Th>
+                  <Th>Servicio</Th>
+                  <Th className="text-right">Cantidad</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {serviciosBase.map((servicio) => (
+                  <tr key={servicio.pos} className="border-t border-border">
+                    <Td className="tabular-nums">{servicio.codigo}</Td>
+                    <Td className="tabular-nums">{servicio.pos}</Td>
+                    <Td className="min-w-0 break-words">{servicio.descripcion}</Td>
+                    <Td className="text-right">
+                      <div className="flex justify-end">
+                        <ServicioCantidadInput
+                          pos={servicio.pos}
+                          value={cantidades[servicio.pos] || ''}
+                          onChange={cambiarCantidad}
+                        />
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-start">
+            <Link
+              href={routes.operador.parteOperativo(id)}
+              className={cn(btnSecondaryClass, 'w-full justify-center sm:w-auto')}
+            >
               Volver a observaciones
             </Link>
             <button

@@ -20,7 +20,7 @@ export default function OperadorCargaLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl px-4 py-6 md:px-8 md:py-8">
+      <main className="mx-auto w-full max-w-none px-4 py-6 sm:px-6 md:py-8 lg:max-w-6xl lg:px-8">
         {children}
       </main>
     </div>
