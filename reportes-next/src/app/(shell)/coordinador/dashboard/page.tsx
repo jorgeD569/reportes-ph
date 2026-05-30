@@ -10,6 +10,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { routes } from '@/lib/constants/routes'
 import { get } from '@/lib/api'
 import type { GetReportesPhResponse } from '@/lib/types/reportes'
+import type { GetPartesOperativosResponse } from '@/lib/types/partes-operativos'
 import type { Activo, Consumible } from '@/lib/types/inventario'
 import { vencimientoState } from '@/lib/vencimientos'
 import { stockState } from '@/lib/stock'
@@ -63,6 +64,7 @@ export default function CoordinadorDashboardPage() {
     activosProximos: number
     fueraServicio: number
     stockBajo: number
+    partesOperativos: number
   } | null>(null)
 
   React.useEffect(() => {
@@ -73,13 +75,16 @@ export default function CoordinadorDashboardPage() {
         setLoading(true)
         setError(null)
 
-        const [reportesData, activos, consumibles] = await Promise.all([
-          get<GetReportesPhResponse>('/reportes-ph'),
-          get<Activo[]>('/activos'),
-          get<Consumible[]>('/consumibles'),
-        ])
+        const [reportesData, partesOperativosData, activos, consumibles] =
+          await Promise.all([
+            get<GetReportesPhResponse>('/reportes-ph'),
+            get<GetPartesOperativosResponse>('/partes-operativos'),
+            get<Activo[]>('/activos'),
+            get<Consumible[]>('/consumibles'),
+          ])
 
         const reportes = reportesData.reportes || []
+        const partesOperativos = partesOperativosData.partes?.length ?? 0
 
         const activosVencidos = (activos || []).filter((a) => {
           const { state } = vencimientoState(a.vencimiento)
@@ -116,6 +121,7 @@ export default function CoordinadorDashboardPage() {
           activosProximos,
           fueraServicio,
           stockBajo,
+          partesOperativos,
         })
       } catch (e) {
         if (cancelled) return
@@ -192,10 +198,10 @@ export default function CoordinadorDashboardPage() {
             href={`${routes.coordinador.inventario.consumibles}?filtro=stock_bajo`}
           />
           <KpiCard
-            label="Salud API"
-            value="OK"
-            badge={<StatusBadge variant="success">Online</StatusBadge>}
-            href={routes.coordinador.reportesPh}
+            label="Partes operativos"
+            value={String(kpis.partesOperativos)}
+            badge={<StatusBadge variant="info">Operativos</StatusBadge>}
+            href={routes.coordinador.partesOperativos}
           />
         </div>
       ) : null}

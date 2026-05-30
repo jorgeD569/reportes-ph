@@ -14,9 +14,11 @@ type NavItem = {
 const EXACT_MATCH_HREFS = new Set<string>([
   routes.operador.partePh,
   routes.operador.partesOperativos,
+  routes.operador.capacitaciones,
   routes.coordinador.dashboard,
   routes.coordinador.reportesPh,
   routes.coordinador.partesOperativos,
+  routes.coordinador.capacitaciones,
   routes.coordinador.inventario.activos,
   routes.coordinador.inventario.consumibles,
   routes.coordinador.inventario.gestion,
@@ -59,12 +61,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navOperador: NavItem[] = [
     { label: 'Parte PH', href: routes.operador.partePh },
     { label: 'Partes Operativos', href: routes.operador.partesOperativos },
+    { label: 'Capacitaciones HSE', href: routes.operador.capacitaciones },
   ]
 
   const navCoordinador: NavItem[] = [
     { label: 'Dashboard', href: routes.coordinador.dashboard },
     { label: 'Reportes PH', href: routes.coordinador.reportesPh },
     { label: 'Partes Operativos', href: routes.coordinador.partesOperativos },
+    { label: 'Capacitaciones HSE', href: routes.coordinador.capacitaciones },
     { label: 'Activos', href: routes.coordinador.inventario.activos },
     { label: 'Consumibles', href: routes.coordinador.inventario.consumibles },
     { label: 'Gestión', href: routes.coordinador.inventario.gestion },
