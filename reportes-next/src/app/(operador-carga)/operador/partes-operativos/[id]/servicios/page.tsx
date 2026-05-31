@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useState } from 'react'
 import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlowSteps'
-import { btnSecondaryClass, inputClass } from '@/components/operador/parte-operativo-styles'
+import { btnSecondaryClass, inputClass, pageSectionClass } from '@/components/operador/parte-operativo-styles'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { Td, Th } from '@/components/ui/ModernTable'
@@ -25,7 +25,7 @@ type CerrarParteResponse = {
 }
 
 const btnPrimaryClass =
-  'inline-flex h-11 w-full min-w-0 items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[220px]'
+  'inline-flex h-11 w-full min-w-0 max-w-full items-center justify-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto lg:min-w-[220px]'
 
 const cantidadInputClass = cn(
   inputClass,
@@ -34,6 +34,7 @@ const cantidadInputClass = cn(
 
 const serviciosBase = [
   { codigo: '10', pos: '1', descripcion: 'UNIDAD PESADA - (Op/Ay/Resc)' },
+  { codigo: '10', pos: '3', descripcion: 'km unidad pesada -' },
   { codigo: '10', pos: '5', descripcion: 'Montaje/Desmont BPV/TWC C/ Lub' },
   { codigo: '10', pos: '17', descripcion: 'Lubricador lat Telescop.' },
   { codigo: '10', pos: '27', descripcion: 'Prueba hidrául. líneas y válvulas h/ 5 v' },
@@ -43,6 +44,7 @@ const serviciosBase = [
   { codigo: '10', pos: '35', descripcion: 'Engrase válvulas - Diám dde 5 1/8 h/7 plg' },
   { codigo: '10', pos: '37', descripcion: 'Torqueo hasta 5 bridas - Cargo básico' },
   { codigo: '10', pos: '39', descripcion: 'Torqueo brida/Valvula adicional' },
+  { codigo: '10', pos: '41', descripcion: 'Servicio de cierre, montaje y PH de Rodlock' },
 ]
 
 function ServicioCantidadInput({
@@ -74,9 +76,16 @@ export default function ServiciosParteOperativoPage() {
   const [cantidades, setCantidades] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [parteCerrado, setParteCerrado] = useState(false)
 
   function cambiarCantidad(pos: string, value: string) {
     setCantidades((prev) => ({ ...prev, [pos]: value }))
+  }
+
+  function abrirPdf() {
+    if (!pdfUrl) return
+    window.open(pdfUrl, '_blank', 'noopener,noreferrer')
   }
 
   async function guardarServicios() {
@@ -85,6 +94,8 @@ export default function ServiciosParteOperativoPage() {
     try {
       setLoading(true)
       setError(null)
+      setPdfUrl(null)
+      setParteCerrado(false)
 
       const servicios = serviciosBase
         .map((servicio) => ({
@@ -119,11 +130,12 @@ export default function ServiciosParteOperativoPage() {
         throw new Error(cerrarData.error || 'Error cerrando parte')
       }
 
-      const pdfUrl =
+      const urlPdfGenerado =
         typeof cerrarData.pdf_url === 'string' ? cerrarData.pdf_url.trim() : ''
 
-      if (pdfUrl) {
-        window.location.href = pdfUrl
+      if (urlPdfGenerado) {
+        setPdfUrl(urlPdfGenerado)
+        setParteCerrado(true)
         return
       }
 
@@ -136,16 +148,24 @@ export default function ServiciosParteOperativoPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-none space-y-6 lg:max-w-6xl">
+    <div className={`mx-auto w-full max-w-none space-y-6 lg:max-w-6xl ${pageSectionClass}`}>
       <PageHeader
         title="Servicios del parte"
         subtitle="Cargá cantidades y cerrá el parte para generar el PDF operativo."
       />
 
-      <ParteOperativoFlowSteps current="servicios" />
+      <ParteOperativoFlowSteps current="servicios" parteCerrado={parteCerrado && Boolean(pdfUrl)} />
 
       {error ? (
         <InlineMessage kind="error" title="Atención" description={error} />
+      ) : null}
+
+      {parteCerrado && pdfUrl ? (
+        <InlineMessage
+          kind="success"
+          title="Parte cerrado correctamente"
+          description="El PDF del parte operativo está listo. Podés abrirlo cuando quieras."
+        />
       ) : null}
 
       <Card>
@@ -232,14 +252,24 @@ export default function ServiciosParteOperativoPage() {
             >
               Volver a observaciones
             </Link>
-            <button
-              type="button"
-              onClick={() => void guardarServicios()}
-              disabled={loading}
-              className={btnPrimaryClass}
-            >
-              {loading ? 'Generando PDF...' : 'Cerrar parte y generar PDF'}
-            </button>
+            {parteCerrado && pdfUrl ? (
+              <button
+                type="button"
+                onClick={abrirPdf}
+                className={btnPrimaryClass}
+              >
+                Ver PDF
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => void guardarServicios()}
+                disabled={loading}
+                className={btnPrimaryClass}
+              >
+                {loading ? 'Generando PDF...' : 'Cerrar parte y generar PDF'}
+              </button>
+            )}
           </div>
         </CardBody>
       </Card>

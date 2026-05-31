@@ -10,7 +10,7 @@ export function DataField({
   className?: string
 }) {
   return (
-    <div className={cn('rounded-2xl border border-border bg-surface-2 p-4', className)}>
+    <div className={cn('min-w-0 rounded-2xl border border-border bg-surface-2 p-4', className)}>
       <div className="text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </div>

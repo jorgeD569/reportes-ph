@@ -1625,6 +1625,7 @@ app.post('/partes-operativos', async (req, res) => {
       unidad_pesada = null,
       salida_desde = null,
       km = null,
+      supervisor_operativo = null,
       operador_1 = null,
       operador_2 = null,
       operador_3 = null
@@ -1653,6 +1654,7 @@ app.post('/partes-operativos', async (req, res) => {
         unidad_pesada,
         salida_desde,
         km,
+        supervisor_operativo,
         operador_1,
         operador_2,
         operador_3,

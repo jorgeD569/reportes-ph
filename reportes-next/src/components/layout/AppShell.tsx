@@ -15,8 +15,8 @@ function AppShellFallback({
   title?: string
 }) {
   return (
-    <div className="min-h-screen bg-app text-app">
-      <div className="mx-auto grid w-full max-w-[1400px] grid-cols-1 md:grid-cols-[280px_1fr]">
+    <div className="min-h-screen overflow-x-hidden bg-app text-app">
+      <div className="mx-auto grid w-full min-w-0 max-w-[1400px] grid-cols-1 md:grid-cols-[280px_1fr]">
         <div className="hidden md:block">
           <div className="sticky top-0 h-screen">
             <Sidebar />
@@ -24,8 +24,8 @@ function AppShellFallback({
         </div>
         <div className="min-w-0">
           <Topbar title={title} />
-          <main className="px-4 py-6 md:px-6">
-            <div className="mx-auto w-full">{children}</div>
+          <main className="min-w-0 overflow-x-hidden px-4 py-6 md:px-6">
+            <div className="mx-auto w-full min-w-0 max-w-full">{children}</div>
           </main>
         </div>
       </div>
@@ -52,10 +52,10 @@ function AppShellInner({
   const showChromeOnMobile = !isParteOperativoFlow
 
   return (
-    <div className="min-h-screen bg-app text-app">
+    <div className="min-h-screen overflow-x-hidden bg-app text-app">
       <div
         className={cn(
-          'mx-auto grid w-full max-w-[1400px] grid-cols-1',
+          'mx-auto grid w-full min-w-0 max-w-[1400px] grid-cols-1',
           isParteOperativoFlow ? 'lg:grid-cols-[280px_1fr]' : 'md:grid-cols-[280px_1fr]'
         )}
       >
@@ -70,10 +70,10 @@ function AppShellInner({
             <Topbar title={title} onToggleSidebar={() => setMobileOpen(true)} />
           </div>
 
-          <main className="px-4 py-6 md:px-6">
+          <main className="min-w-0 overflow-x-hidden px-4 py-6 md:px-6">
             <div
               className={cn(
-                'mx-auto w-full',
+                'mx-auto w-full min-w-0 max-w-full',
                 isParteOperativoFlow && 'max-lg:max-w-2xl'
               )}
             >

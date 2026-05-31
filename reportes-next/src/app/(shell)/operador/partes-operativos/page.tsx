@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlowSteps'
-import { inputClass, labelClass } from '@/components/operador/parte-operativo-styles'
+import { inputClass, labelClass, formGridClass, pageSectionClass } from '@/components/operador/parte-operativo-styles'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -17,7 +17,28 @@ type CrearParteResponse = {
 }
 
 const submitButtonClass =
-  'block h-12 w-full rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-6 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[240px]'
+  'block h-12 w-full max-w-full rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-6 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto lg:min-w-[240px]'
+
+const yacimientosPorOperadora: Record<string, string[]> = {
+  YPF: [
+    'LOMA LA LATA',
+    'LOMA CAMPANA',
+    'LA AMARGA CHICA',
+    'LAS CAVERNAS',
+    'EL OREJANO',
+    'AGUADA DEL CHIVATO',
+    'SHALE OIL',
+  ],
+}
+
+const operadorasFrecuentes = [
+  'YPF',
+  'VISTA ENERGY',
+  'CHEVRON',
+  'TECPETROL',
+  'PRODENG',
+  'PAMPA ENERGIA',
+]
 
 export default function ParteOperativoPage() {
   const [loading, setLoading] = useState(false)
@@ -32,6 +53,7 @@ export default function ParteOperativoPage() {
     unidad_pesada: '',
     salida_desde: '',
     km: '',
+    supervisor_operativo: '',
     operador_1: '',
     operador_2: '',
     operador_3: '',
@@ -40,6 +62,9 @@ export default function ParteOperativoPage() {
   function setField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
+
+  const yacimientosSugeridos =
+    yacimientosPorOperadora[form.operadora.trim().toUpperCase()] ?? []
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -73,6 +98,7 @@ export default function ParteOperativoPage() {
         unidad_pesada: '',
         salida_desde: '',
         km: '',
+        supervisor_operativo: '',
         operador_1: '',
         operador_2: '',
         operador_3: '',
@@ -85,7 +111,7 @@ export default function ParteOperativoPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${pageSectionClass}`}>
       <PageHeader
         title="Nuevo parte operativo"
         subtitle="Completá los datos iniciales. Se abrirá una ventana de carga sin menú lateral para continuar el flujo."
@@ -108,7 +134,7 @@ export default function ParteOperativoPage() {
             </div>
           </CardHeader>
           <CardBody className="pt-0">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className={formGridClass}>
               <div>
                 <label className={labelClass} htmlFor="fecha">
                   Fecha
@@ -132,18 +158,8 @@ export default function ParteOperativoPage() {
                   onChange={(e) => setField('pozo', e.target.value)}
                   placeholder="Nombre del pozo"
                 />
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="yacimiento">
-                  Yacimiento
-                </label>
-                <input
-                  id="yacimiento"
-                  className={inputClass}
-                  value={form.yacimiento}
-                  onChange={(e) => setField('yacimiento', e.target.value)}
-                />
-              </div>
+              </div>             
+
               <div>
                 <label className={labelClass} htmlFor="operadora">
                   Operadora
@@ -151,10 +167,35 @@ export default function ParteOperativoPage() {
                 <input
                   id="operadora"
                   className={inputClass}
+                  list="operadoras-frecuentes"
                   value={form.operadora}
                   onChange={(e) => setField('operadora', e.target.value)}
                 />
+                <datalist id="operadoras-frecuentes">
+                  {operadorasFrecuentes.map((operadora) => (
+                    <option key={operadora} value={operadora} />
+                  ))}
+                </datalist>
               </div>
+
+              <div>
+                <label className={labelClass} htmlFor="yacimiento">
+                  Yacimiento
+                </label>
+                <input
+                  id="yacimiento"
+                  className={inputClass}
+                  list="yacimientos-sugeridos"
+                  value={form.yacimiento}
+                  onChange={(e) => setField('yacimiento', e.target.value)}
+                />
+                <datalist id="yacimientos-sugeridos">
+                  {yacimientosSugeridos.map((yacimiento) => (
+                    <option key={yacimiento} value={yacimiento} />
+                  ))}
+                </datalist>
+              </div>
+
               <div>
                 <label className={labelClass} htmlFor="unidad_pesada">
                   Unidad pesada
@@ -189,8 +230,19 @@ export default function ParteOperativoPage() {
                 />
               </div>
               <div>
+                <label className={labelClass} htmlFor="supervisor_operativo">
+                  Supervisor operativo
+                </label>
+                <input
+                  id="supervisor_operativo"
+                  className={inputClass}
+                  value={form.supervisor_operativo}
+                  onChange={(e) => setField('supervisor_operativo', e.target.value)}
+                />
+              </div>
+              <div>
                 <label className={labelClass} htmlFor="operador_1">
-                  Operador 1
+                  Operador líder
                 </label>
                 <input
                   id="operador_1"
@@ -201,7 +253,7 @@ export default function ParteOperativoPage() {
               </div>
               <div>
                 <label className={labelClass} htmlFor="operador_2">
-                  Operador 2
+                  Operador
                 </label>
                 <input
                   id="operador_2"
@@ -212,7 +264,7 @@ export default function ParteOperativoPage() {
               </div>
               <div>
                 <label className={labelClass} htmlFor="operador_3">
-                  Operador 3
+                  Ayudante
                 </label>
                 <input
                   id="operador_3"
@@ -225,17 +277,12 @@ export default function ParteOperativoPage() {
           </CardBody>
         </Card>
 
-        <Card>
-          <CardBody className="space-y-3">
-            <p className="text-sm text-muted">
-              Al confirmar se crea el parte y se abre la ventana de carga.
-            </p>
-            <button type="submit" disabled={loading} className={submitButtonClass}>
-              {loading ? 'Generando...' : 'Generar parte operativo'}
-            </button>
-          </CardBody>
-        </Card>
-      </form>
-    </div>
-  )
+        <div className="mt-4">
+  <button type="submit" disabled={loading} className={submitButtonClass}>
+    {loading ? 'Generando...' : 'Generar parte operativo'}
+  </button>
+</div>
+</form>
+</div>
+)
 }

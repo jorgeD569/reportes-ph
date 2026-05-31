@@ -21,7 +21,7 @@ export function PageHeader({
           <p className="mt-1 text-sm text-muted md:text-base">{subtitle}</p>
         ) : null}
       </div>
-      {right ? <div className="flex items-center gap-2">{right}</div> : null}
+      {right ? <div className="flex min-w-0 shrink-0 items-center gap-2">{right}</div> : null}
     </header>
   )
 }

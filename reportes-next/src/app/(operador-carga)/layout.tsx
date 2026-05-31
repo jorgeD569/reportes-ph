@@ -4,9 +4,9 @@ export default function OperadorCargaLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="min-h-screen bg-app text-app">
+    <div className="min-h-screen overflow-x-hidden bg-app text-app">
       <header className="border-b border-border bg-surface shadow-[var(--shadow-app)]">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 md:px-6">
+        <div className="mx-auto flex max-w-5xl min-w-0 items-center gap-3 px-4 py-4 md:px-6">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#0f1f2d] text-sm font-extrabold text-white">
             K
           </div>
@@ -20,7 +20,7 @@ export default function OperadorCargaLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-none px-4 py-6 sm:px-6 md:py-8 lg:max-w-6xl lg:px-8">
+      <main className="mx-auto w-full min-w-0 max-w-full overflow-x-hidden px-4 py-6 sm:px-6 md:py-8 lg:max-w-6xl lg:px-8">
         {children}
       </main>
     </div>

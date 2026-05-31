@@ -11,6 +11,10 @@ export type PartePhPrefill = {
   yacimiento: string
   cliente: string
   contratista: string
+  supervisor_operativo: string
+  operador_1: string
+  operador_2: string
+  operador_3: string
 }
 
 export const PARTE_PH_PREFILL_PARAM_KEYS = [
@@ -21,6 +25,10 @@ export const PARTE_PH_PREFILL_PARAM_KEYS = [
   'yacimiento',
   'cliente',
   'contratista',
+  'supervisor_operativo',
+  'operador_1',
+  'operador_2',
+  'operador_3',
 ] as const satisfies ReadonlyArray<keyof PartePhPrefill>
 
 export function emptyPartePhPrefill(): PartePhPrefill {
@@ -32,6 +40,10 @@ export function emptyPartePhPrefill(): PartePhPrefill {
     yacimiento: '',
     cliente: '',
     contratista: '',
+    supervisor_operativo: '',
+    operador_1: '',
+    operador_2: '',
+    operador_3: '',
   }
 }
 
@@ -50,6 +62,10 @@ export function parsePartePhPrefillFromSearchParams(
     yacimiento: searchParams.get('yacimiento') ?? '',
     cliente: searchParams.get('cliente') ?? '',
     contratista: searchParams.get('contratista') ?? '',
+    supervisor_operativo: searchParams.get('supervisor_operativo') ?? '',
+    operador_1: searchParams.get('operador_1') ?? '',
+    operador_2: searchParams.get('operador_2') ?? '',
+    operador_3: searchParams.get('operador_3') ?? '',
   }
 }
 
@@ -70,6 +86,10 @@ export type PartePhFormPrefillFields = {
   pozo: string
   yacimiento: string
   cliente: string
+  supervisor_operativo: string
+  operador_lider: string
+  operador: string
+  ayudante: string
 }
 
 export function partePhFormFieldsFromPrefill(
@@ -81,6 +101,10 @@ export function partePhFormFieldsFromPrefill(
     pozo: prefill.pozo.trim(),
     yacimiento: prefill.yacimiento.trim(),
     cliente: prefill.cliente.trim(),
+    supervisor_operativo: prefill.supervisor_operativo.trim(),
+    operador_lider: prefill.operador_1.trim(),
+    operador: prefill.operador_2.trim(),
+    ayudante: prefill.operador_3.trim(),
   }
 }
 

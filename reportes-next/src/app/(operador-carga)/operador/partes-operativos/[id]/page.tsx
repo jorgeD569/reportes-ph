@@ -6,8 +6,10 @@ import { ParteOperativoFlowSteps } from '@/components/operador/ParteOperativoFlo
 import {
   btnPrimaryClass,
   btnSecondaryClass,
+  formGridClassCompact,
   inputClass,
   labelClass,
+  pageSectionClass,
   textareaClass,
 } from '@/components/operador/parte-operativo-styles'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -32,6 +34,10 @@ type ParteOperativo = {
   unidad_pesada?: string | null
   estado?: string | null
   observaciones?: string | null
+  supervisor_operativo?: string | null
+  operador_1?: string | null
+  operador_2?: string | null
+  operador_3?: string | null
 }
 
 function buildPrefillFromParte(parte: ParteOperativo): PartePhPrefill {
@@ -50,6 +56,10 @@ function buildPrefillFromParte(parte: ParteOperativo): PartePhPrefill {
     yacimiento: parte.yacimiento ?? '',
     cliente: parte.operadora ?? '',
     contratista: parte.contratista ?? '',
+    supervisor_operativo: parte.supervisor_operativo ?? '',
+    operador_1: parte.operador_1 ?? '',
+    operador_2: parte.operador_2 ?? '',
+    operador_3: parte.operador_3 ?? '',
   }
 }
 
@@ -147,7 +157,7 @@ export default function ParteOperativoDetallePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${pageSectionClass}`}>
       <PageHeader
         title={`Parte operativo N° ${parte.numero_parte ?? '—'}`}
         subtitle="Completá observaciones y continuá con servicios para cerrar el parte."
@@ -174,7 +184,7 @@ export default function ParteOperativoDetallePage() {
           </div>
         </CardHeader>
         <CardBody className="pt-0">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={formGridClassCompact}>
             <DataField label="Pozo" value={parte.pozo || '—'} />
             <DataField label="Yacimiento" value={parte.yacimiento || '—'} />
             <DataField label="Operadora" value={parte.operadora || '—'} />
@@ -229,10 +239,10 @@ export default function ParteOperativoDetallePage() {
             />
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
               type="button"
-              className={btnPrimaryClass}
+              className={`${btnPrimaryClass} w-full sm:w-auto`}
               onClick={guardarObservaciones}
               disabled={saving}
             >
@@ -240,7 +250,7 @@ export default function ParteOperativoDetallePage() {
             </button>
             <button
                type="button"
-               className={btnSecondaryClass}
+               className={`${btnSecondaryClass} w-full sm:w-auto`}
                onClick={guardarObservaciones}
                disabled={saving}
             >

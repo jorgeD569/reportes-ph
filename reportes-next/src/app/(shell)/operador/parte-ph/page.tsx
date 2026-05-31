@@ -8,6 +8,11 @@ import { InlineMessage } from '@/components/ui/InlineMessage'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import {
+  formGridClass,
+  formGridClassWide,
+  pageSectionClass,
+} from '@/components/operador/parte-operativo-styles'
 import { get, post } from '@/lib/api'
 import type { Activo } from '@/lib/types/inventario'
 import type { GetActivosOperadorResponse } from '@/lib/types/operador'
@@ -75,10 +80,10 @@ const DEFAULT_FLUIDO_UTILIZADO = 'Agua limpia'
 const DEFAULT_EQUIPO_SERVICIO = 'Sin equipo'
 
 const inputClass =
-  'h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 disabled:opacity-60'
+  'h-11 w-full min-w-0 max-w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 disabled:opacity-60'
 const labelClass = 'mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted'
 const textareaClass =
-  'min-h-[100px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 disabled:opacity-60'
+  'min-h-[100px] w-full min-w-0 max-w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 disabled:opacity-60'
 
 function pickField(loaded: string | null | undefined, fallback: string): string {
   const trimmed = (loaded ?? '').trim()
@@ -143,6 +148,13 @@ function initialFormValues(
     cliente: pickField(prefill?.cliente ?? existing?.cliente, base.cliente),
     yacimiento: pickField(prefill?.yacimiento ?? existing?.yacimiento, base.yacimiento),
     pozo: pickField(prefill?.pozo ?? existing?.pozo, base.pozo),
+    supervisor_operativo: pickField(
+      prefill?.supervisor_operativo ?? existing?.supervisor_operativo,
+      base.supervisor_operativo
+    ),
+    operador_lider: pickField(prefill?.operador_lider ?? existing?.operador_lider, base.operador_lider),
+    operador: pickField(prefill?.operador ?? existing?.operador, base.operador),
+    ayudante: pickField(prefill?.ayudante ?? existing?.ayudante, base.ayudante),
     fluido_utilizado: pickField(existing?.fluido_utilizado, base.fluido_utilizado),
     equipo_general: pickField(existing?.equipo_general, base.equipo_general),
   }
@@ -515,13 +527,16 @@ function OperadorPartePhPageContent() {
             ? String(resultado.parte.id)
             : null
 
-      setFormSuccess(`Parte guardado correctamente. ID interno: ${parteIdGuardado}`)
+      setFormSuccess(
+        parteIdGuardado
+          ? `Parte guardado correctamente. ID interno: ${parteIdGuardado}`
+          : 'Parte guardado correctamente.'
+      )
       foto_1_base64 = null
       foto_2_base64 = null
 
-      if (parteIdGuardado) {
-        resetFormulario()
-      }
+      resetFormulario()
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (e) {
       if (process.env.NODE_ENV === 'development') {
         console.error('ERROR GUARDAR PARTE', e)
@@ -535,7 +550,7 @@ function OperadorPartePhPageContent() {
   const bloqueadoEquipos = loadingEquipos || !!equiposError
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className={`space-y-6 pb-10 ${pageSectionClass}`}>
       <PageHeader title="Reporte de PH" subtitle="Carga de datos del ensayo" />
 
       {loadingEquipos ? <LoadingState label="Cargando unidades y WIKAs…" /> : null}
@@ -556,7 +571,7 @@ function OperadorPartePhPageContent() {
           <div className="text-lg font-semibold">Datos generales</div>
         </CardHeader>
         <CardBody>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={formGridClass}>
             <div>
               <label className={labelClass} htmlFor="reporte_numero">
                 Reporte N°
@@ -665,7 +680,7 @@ function OperadorPartePhPageContent() {
           </div>
 
           {f.tipo_prueba === 'positiva' ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className={formGridClass}>
               <div>
                 <label className={labelClass} htmlFor="presion_ensayo">
                   Presión de ensayo
@@ -786,7 +801,7 @@ function OperadorPartePhPageContent() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className={formGridClass}>
               <div>
                 <label className={labelClass} htmlFor="presion_entrampada">
                   Presión entrampada
@@ -907,7 +922,7 @@ function OperadorPartePhPageContent() {
           <div className="text-lg font-semibold">Elemento a ensayar</div>
         </CardHeader>
         <CardBody>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={formGridClass}>
             <div>
               <label className={labelClass} htmlFor="elemento_ensayar">
                 Elemento a ensayar
@@ -1001,7 +1016,7 @@ function OperadorPartePhPageContent() {
           <div className="text-lg font-semibold">Equipamiento</div>
         </CardHeader>
         <CardBody>
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className={formGridClassWide}>
             <div>
               <label className={labelClass} htmlFor="equipo">
                 Unidad
@@ -1179,7 +1194,7 @@ function OperadorPartePhPageContent() {
           <div className="text-lg font-semibold">Personal involucrado</div>
         </CardHeader>
         <CardBody>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className={formGridClass}>
             <div>
               <label className={labelClass} htmlFor="supervisor_operativo">
                 Supervisor operativo
@@ -1237,7 +1252,7 @@ function OperadorPartePhPageContent() {
           <div className="text-lg font-semibold">Registro fotográfico</div>
         </CardHeader>
         <CardBody>
-          <div className="grid gap-6 sm:grid-cols-2">
+          <div className={formGridClassWide}>
             <div className="rounded-2xl border border-dashed border-border bg-surface-2 p-4">
               <label className={labelClass} htmlFor="foto_1">
                 Foto 1
@@ -1304,7 +1319,7 @@ function OperadorPartePhPageContent() {
               type="button"
               onClick={guardarParte}
               disabled={bloqueadoEquipos || saving}
-              className="h-12 min-w-[160px] rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-6 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:opacity-60"
+              className="h-12 w-full max-w-full rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-6 text-sm font-semibold text-white shadow-[var(--shadow-app)] hover:opacity-95 disabled:opacity-60 lg:w-auto lg:min-w-[160px]"
             >
               Guardar PH
             </button>

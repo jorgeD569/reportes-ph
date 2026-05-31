@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { DataField } from '@/components/ui/DataField'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -312,9 +311,7 @@ export default function CoordinadorReportePhDetallePage() {
           console.log('GENERAR PDF TIMEOUT, INICIANDO POLLING')
         }
         setActionError(null)
-        setActionInfo(
-          'El PDF está terminando de generarse. Verificando estado…'
-        )
+        setActionInfo(null)
       } else {
         setActionInfo(null)
         setActionError(e instanceof Error ? e.message : String(e))
@@ -352,7 +349,6 @@ export default function CoordinadorReportePhDetallePage() {
     <div className="space-y-6">
       <PageHeader
         title="Detalle reporte PH"
-        subtitle="Carga de gráfico WIKA y generación de PDF (UI nueva)."
         right={
           <Link
             href={routes.coordinador.reportesPh}
@@ -377,9 +373,6 @@ export default function CoordinadorReportePhDetallePage() {
           <CardHeader>
             <div>
               <div className="text-lg font-semibold">Datos del parte</div>
-              <div className="mt-1 text-sm text-muted">
-                Datos en vivo desde <code className="font-mono">GET /reportes-ph/:id</code>.
-              </div>
             </div>
             <StatusBadge variant="info">ID: {id}</StatusBadge>
           </CardHeader>
@@ -448,20 +441,8 @@ export default function CoordinadorReportePhDetallePage() {
   />
 
   <DataField
-    label="Creado"
+    label="Registro creado"
     value={parte?.created_at ? formatDateTimeEsAr(parte.created_at) : '—'}
-  />
-
-  <DataField
-    label="WIKA path"
-    value={safeText(parte?.wika_image_path)}
-    className="sm:col-span-2"
-  />
-
-  <DataField
-    label="PDF path"
-    value={safeText(parte?.reporte_pdf_path)}
-    className="sm:col-span-2"
   />
 </div>
           </CardBody>
@@ -471,9 +452,6 @@ export default function CoordinadorReportePhDetallePage() {
           <CardHeader>
             <div>
               <div className="text-lg font-semibold">WIKA + PDF</div>
-              <div className="mt-1 text-sm text-muted">
-                Subida WIKA y generación PDF (vía backend actual).
-              </div>
             </div>
           </CardHeader>
           <CardBody>
@@ -528,12 +506,6 @@ export default function CoordinadorReportePhDetallePage() {
                       Verificar PDF
                     </button>
                   </div>
-                  {pdfOk && !pdfUrl ? (
-                    <div className="mt-2 text-xs text-muted">
-                      El link se mostrará cuando el backend devuelva <code className="font-mono">url</code> o{' '}
-                      <code className="font-mono">reporte_pdf_url</code>.
-                    </div>
-                  ) : null}
                 </div>
               </div>
 
@@ -599,10 +571,6 @@ export default function CoordinadorReportePhDetallePage() {
                 </button>
               </div>
 
-              <EmptyState
-                title="Reglas"
-                description="Los POST se realizan por src/lib/api.ts, sin tocar backend ni cambiar payloads. Guardar parte / inventario siguen deshabilitados."
-              />
             </div>
           </CardBody>
         </Card>

@@ -10,7 +10,7 @@ export function Card({
   return (
     <section
       className={cn(
-        'rounded-[var(--radius-app)] border border-border bg-surface shadow-[var(--shadow-app)]',
+        'min-w-0 max-w-full overflow-x-hidden rounded-[var(--radius-app)] border border-border bg-surface shadow-[var(--shadow-app)]',
         className
       )}
     >

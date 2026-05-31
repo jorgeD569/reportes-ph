@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { routes } from '@/lib/constants/routes'
 import { cn } from '@/lib/cn'
+import { SidebarBrand } from '@/components/shell/SidebarBrand'
 
 type NavItem = {
   label: string
@@ -76,14 +77,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <aside className="flex h-full w-full flex-col border-r border-white/10 bg-[linear-gradient(180deg,#0f1f2d_0%,#13283a_100%)] px-3 py-4 text-white">
-      <div className="flex items-center gap-3 px-2 pb-4">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-sm font-extrabold">
-          K
-        </div>
-        <div className="min-w-0">
-          <div className="text-sm font-extrabold tracking-tight">Kompass</div>
-          <div className="text-xs text-white/60">REPORTES PH</div>
-        </div>
+      <div className="px-1 pb-5">
+        <SidebarBrand />
       </div>
 
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-1">

@@ -30,11 +30,19 @@ export function Topbar({
               <span className="text-lg leading-none">≡</span>
             </button>
           ) : null}
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-app">
-              {title || 'REPORTES PH'}
+          <div
+            className={cn(
+              'flex min-w-0 flex-col items-center justify-center rounded-2xl px-5 py-2.5 text-center',
+              'bg-[linear-gradient(135deg,#0c2c40_0%,#0f1f2d_55%,#13283a_100%)]',
+              'shadow-[0_4px_16px_rgba(15,31,45,0.22)]'
+            )}
+          >
+            <div className="truncate text-sm font-extrabold uppercase tracking-[0.14em] text-white md:text-base">
+              {title || 'Cpanel'}
             </div>
-            <div className="truncate text-xs text-muted">Panel operativo</div>
+            <div className="mt-0.5 truncate text-xs font-medium text-white/65">
+              Panel operativo
+            </div>
           </div>
         </div>
 
