@@ -1,15 +1,19 @@
 'use client'
 
+import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { routes } from '@/lib/constants/routes'
+import { LogoutButton } from '@/components/auth/LogoutButton'
+import { readAppUsuario } from '@/lib/auth'
+import {
+  filterNavItemsByRol,
+  NAV_COORDINADOR,
+  NAV_OPERADOR,
+  type NavItemDef,
+} from '@/lib/permissions'
 import { cn } from '@/lib/cn'
 import { SidebarBrand } from '@/components/shell/SidebarBrand'
-
-type NavItem = {
-  label: string
-  href: string
-}
 
 /** Rutas de menú sin hijos en la URL: solo coincidencia exacta (evita conflictos entre /operador/parte-ph y /operador/partes-operativos). */
 const EXACT_MATCH_HREFS = new Set<string>([
@@ -23,6 +27,7 @@ const EXACT_MATCH_HREFS = new Set<string>([
   routes.coordinador.inventario.activos,
   routes.coordinador.inventario.consumibles,
   routes.coordinador.inventario.gestion,
+  routes.coordinador.usuarios,
 ])
 
 function isNavActive(pathname: string, href: string) {
@@ -35,7 +40,7 @@ function NavLink({
   item,
   onNavigate,
 }: {
-  item: NavItem
+  item: NavItemDef
   onNavigate?: () => void
 }) {
   const pathname = usePathname()
@@ -58,54 +63,63 @@ function NavLink({
   )
 }
 
-export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const navOperador: NavItem[] = [
-    { label: 'Parte PH', href: routes.operador.partePh },
-    { label: 'Partes Operativos', href: routes.operador.partesOperativos },
-    { label: 'Capacitaciones HSE', href: routes.operador.capacitaciones },
-  ]
-
-  const navCoordinador: NavItem[] = [
-    { label: 'Dashboard', href: routes.coordinador.dashboard },
-    { label: 'Reportes PH', href: routes.coordinador.reportesPh },
-    { label: 'Partes Operativos', href: routes.coordinador.partesOperativos },
-    { label: 'Capacitaciones HSE', href: routes.coordinador.capacitaciones },
-    { label: 'Activos', href: routes.coordinador.inventario.activos },
-    { label: 'Consumibles', href: routes.coordinador.inventario.consumibles },
-    { label: 'Gestión', href: routes.coordinador.inventario.gestion },
-  ]
+function NavSection({
+  title,
+  items,
+  onNavigate,
+}: {
+  title: string
+  items: NavItemDef[]
+  onNavigate?: () => void
+}) {
+  if (items.length === 0) return null
 
   return (
-    <aside className="flex h-full w-full flex-col border-r border-white/10 bg-[linear-gradient(180deg,#0f1f2d_0%,#13283a_100%)] px-3 py-4 text-white">
+    <div>
+      <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
+        {title}
+      </div>
+      <div className="flex flex-col gap-1">
+        {items.map((item) => (
+          <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const [rol, setRol] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    const usuario = readAppUsuario()
+    React.startTransition(() => {
+      setRol(usuario?.rol ?? null)
+    })
+  }, [])
+
+  const navOperador = filterNavItemsByRol(NAV_OPERADOR, rol)
+  const navCoordinador = filterNavItemsByRol(NAV_COORDINADOR, rol)
+
+  return (
+    <aside className="flex h-screen w-full flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0f1f2d_0%,#13283a_100%)] px-3 py-4 text-white">
       <div className="px-1 pb-5">
         <SidebarBrand />
       </div>
 
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-1">
-        <div>
-          <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
-            Operador
-          </div>
-          <div className="flex flex-col gap-1">
-            {navOperador.map((item) => (
-              <NavLink key={item.href} item={item} onNavigate={onNavigate} />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-white/50">
-            Coordinador
-          </div>
-          <div className="flex flex-col gap-1">
-            {navCoordinador.map((item) => (
-              <NavLink key={item.href} item={item} onNavigate={onNavigate} />
-            ))}
-          </div>
-        </div>
+        <NavSection title="Operador" items={navOperador} onNavigate={onNavigate} />
+        <NavSection
+          title="Coordinador"
+          items={navCoordinador}
+          onNavigate={onNavigate}
+        />
       </nav>
 
-      <div className="px-2 pt-4 text-xs text-white/50">© 2026 Kompass</div>
+      <div className="space-y-3 px-1 pt-4">
+        <LogoutButton variant="sidebar" />
+        <div className="px-1 text-xs text-white/50">© 2026 Kompass</div>
+      </div>
     </aside>
   )
 }

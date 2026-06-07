@@ -59,7 +59,7 @@ function extractMessage(parsed: unknown): string | null {
 }
 
 async function request<T>(
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   body?: unknown,
   options?: RequestOptions
@@ -109,5 +109,9 @@ export async function put<T>(
   options?: RequestOptions
 ) {
   return request<T>('PUT', path, body, options)
+}
+
+export async function del<T>(path: string, options?: RequestOptions) {
+  return request<T>('DELETE', path, undefined, options)
 }
 

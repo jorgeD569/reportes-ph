@@ -21,11 +21,18 @@ export const routes = {
     capacitacionDetalle: (id: string) =>
       `/coordinador/capacitaciones/${encodeURIComponent(id)}`,
     reportePhDetalle: (id: string) => `/coordinador/reportes-ph/${encodeURIComponent(id)}`,
+    gestion: {
+      partesOperativos: '/coordinador/gestion/partes-operativos',
+      parteOperativo: (id: string) =>
+        `/coordinador/gestion/partes-operativos/${encodeURIComponent(id)}`,
+    },
     inventario: {
       activos: '/coordinador/inventario/activos',
       consumibles: '/coordinador/inventario/consumibles',
       gestion: '/coordinador/inventario/gestion',
+      gestionInventario: '/coordinador/inventario/gestion/inventario',
     },
+    usuarios: '/coordinador/usuarios',
   },
 } as const
 

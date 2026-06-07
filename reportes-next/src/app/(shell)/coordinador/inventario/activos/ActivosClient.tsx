@@ -12,6 +12,7 @@ import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get } from '@/lib/api'
+import { COORD_INPUT_LG } from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
 import { formatDateDDMMYYYY, formatDateTimeEsAr } from '@/lib/date'
 import type { Activo } from '@/lib/types/inventario'
@@ -330,7 +331,7 @@ export function ActivosClient() {
         <CardBody>
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <input
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 md:max-w-md"
+              className={`${COORD_INPUT_LG} md:max-w-md`}
               placeholder="Buscar por descripción, serie, ubicación, estado…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}

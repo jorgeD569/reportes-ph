@@ -11,6 +11,11 @@
 import * as React from 'react'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
+import {
+  COORD_BTN_PRIMARY_LG,
+  COORD_INPUT_LG,
+  COORD_LABEL,
+} from '@/lib/coordinador/theme'
 
 /** Clave de sesión frontend (solo sessionStorage): indica ingreso válido hasta cerrar pestaña/navegador. */
 export const GESTION_INVENTARIO_SESSION_KEY = 'kompass::gestion_inventario::dev_session'
@@ -89,7 +94,7 @@ export function GestionInventarioGate({ children }: GestionInventarioGateProps) 
 
   if (!hydrated) {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-sm text-muted">
+      <div className="flex min-h-[40vh] items-center justify-center text-sm text-sky-200/70">
         Cargando…
       </div>
     )
@@ -109,7 +114,7 @@ export function GestionInventarioGate({ children }: GestionInventarioGateProps) 
         <Card>
           <CardHeader>
             <div>
-              <div className="text-lg font-semibold">Gestión de inventario</div>
+              <div className="text-lg font-semibold">Gestión del sistema</div>
               <div className="mt-1 text-sm text-muted">
                 Acceso restringido. Ingresá con las credenciales de desarrollo; en producción se
                 reemplazará por Supabase Auth y roles.
@@ -122,25 +127,25 @@ export function GestionInventarioGate({ children }: GestionInventarioGateProps) 
                 <InlineMessage kind="error" title={error} className="w-full" />
               ) : null}
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Usuario
                 </label>
                 <input
                   autoComplete="username"
-                  className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10"
+                  className={`mt-2 ${COORD_INPUT_LG}`}
                   value={usuario}
                   onChange={(e) => setUsuario(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Contraseña
                 </label>
                 <input
                   autoComplete="current-password"
                   type="password"
-                  className="mt-2 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10"
+                  className={`mt-2 ${COORD_INPUT_LG}`}
                   value={contraseña}
                   onChange={(e) => setContraseña(e.target.value)}
                   required
@@ -148,7 +153,7 @@ export function GestionInventarioGate({ children }: GestionInventarioGateProps) 
               </div>
               <button
                 type="submit"
-                className="h-11 w-full rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] text-sm font-semibold text-white hover:opacity-95"
+                className={COORD_BTN_PRIMARY_LG + ' w-full'}
               >
                 Ingresar
               </button>

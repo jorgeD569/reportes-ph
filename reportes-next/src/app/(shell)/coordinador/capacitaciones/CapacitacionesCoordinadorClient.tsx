@@ -9,14 +9,14 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { btnPrimaryClass } from '@/components/capacitaciones/capacitaciones-form-styles'
 import { fetchCapacitaciones } from '@/lib/capacitaciones/api'
+import {
+  COORD_BTN_PRIMARY_LG,
+  COORD_BTN_SECONDARY,
+} from '@/lib/coordinador/theme'
 import { routes } from '@/lib/constants/routes'
 import { formatDateTimeEsAr } from '@/lib/date'
 import type { Capacitacion } from '@/lib/types/capacitaciones'
-
-const btnSecondary =
-  'inline-flex h-9 items-center rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-app hover:bg-surface-2'
 
 export function CapacitacionesCoordinadorClient() {
   const [loading, setLoading] = React.useState(true)
@@ -51,7 +51,7 @@ export function CapacitacionesCoordinadorClient() {
         title="Capacitaciones HSE"
         subtitle="Creá capacitaciones, asignalas a operadores y registrá evidencia de firma."
         right={
-          <Link href={routes.coordinador.capacitacionesNueva} className={btnPrimaryClass}>
+          <Link href={routes.coordinador.capacitacionesNueva} className={COORD_BTN_PRIMARY_LG}>
             Nueva capacitación
           </Link>
         }
@@ -73,7 +73,7 @@ export function CapacitacionesCoordinadorClient() {
           title="Sin capacitaciones"
           description="Creá la primera capacitación HSE para tu equipo."
           action={
-            <Link href={routes.coordinador.capacitacionesNueva} className={btnPrimaryClass}>
+            <Link href={routes.coordinador.capacitacionesNueva} className={COORD_BTN_PRIMARY_LG}>
               Nueva capacitación
             </Link>
           }
@@ -111,7 +111,7 @@ export function CapacitacionesCoordinadorClient() {
                       <Td className="text-right">
                         <Link
                           href={routes.coordinador.capacitacionDetalle(cap.id)}
-                          className={btnSecondary}
+                          className={COORD_BTN_SECONDARY}
                         >
                           Ver detalle
                         </Link>
@@ -143,7 +143,7 @@ export function CapacitacionesCoordinadorClient() {
                   <div className="mt-4">
                     <Link
                       href={routes.coordinador.capacitacionDetalle(cap.id)}
-                      className={btnSecondary}
+                      className={COORD_BTN_SECONDARY}
                     >
                       Ver detalle
                     </Link>

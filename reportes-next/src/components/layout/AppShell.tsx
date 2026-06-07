@@ -7,6 +7,16 @@ import { Sidebar } from '@/components/shell/Sidebar'
 import { Topbar } from '@/components/shell/Topbar'
 import { cn } from '@/lib/cn'
 
+const SIDEBAR_WIDTH_CLASS = 'w-[280px]'
+
+function sidebarVisibilityClass(isParteOperativoFlow: boolean) {
+  return isParteOperativoFlow ? 'hidden lg:block' : 'hidden md:block'
+}
+
+function mainOffsetClass(isParteOperativoFlow: boolean) {
+  return isParteOperativoFlow ? 'lg:ml-[280px]' : 'md:ml-[280px]'
+}
+
 function AppShellFallback({
   children,
   title,
@@ -16,18 +26,21 @@ function AppShellFallback({
 }) {
   return (
     <div className="min-h-screen overflow-x-hidden bg-app text-app">
-      <div className="mx-auto grid w-full min-w-0 max-w-[1400px] grid-cols-1 md:grid-cols-[280px_1fr]">
-        <div className="hidden md:block">
-          <div className="sticky top-0 h-screen">
-            <Sidebar />
-          </div>
-        </div>
-        <div className="min-w-0">
-          <Topbar title={title} />
-          <main className="min-w-0 overflow-x-hidden px-4 py-6 md:px-6">
-            <div className="mx-auto w-full min-w-0 max-w-full">{children}</div>
-          </main>
-        </div>
+      <div
+        className={cn(
+          'fixed inset-y-0 left-0 z-30',
+          SIDEBAR_WIDTH_CLASS,
+          sidebarVisibilityClass(false)
+        )}
+      >
+        <Sidebar />
+      </div>
+
+      <div className={cn('flex min-h-screen min-w-0 flex-col', mainOffsetClass(false))}>
+        <Topbar title={title} />
+        <main className="min-w-0 flex-1 overflow-x-hidden px-4 py-6 md:px-6">
+          <div className="w-full min-w-0">{children}</div>
+        </main>
       </div>
     </div>
   )
@@ -55,32 +68,28 @@ function AppShellInner({
     <div className="min-h-screen overflow-x-hidden bg-app text-app">
       <div
         className={cn(
-          'mx-auto grid w-full min-w-0 max-w-[1400px] grid-cols-1',
-          isParteOperativoFlow ? 'lg:grid-cols-[280px_1fr]' : 'md:grid-cols-[280px_1fr]'
+          'fixed inset-y-0 left-0 z-30',
+          SIDEBAR_WIDTH_CLASS,
+          sidebarVisibilityClass(isParteOperativoFlow)
         )}
       >
-        <div className={cn('hidden', isParteOperativoFlow ? 'lg:block' : 'md:block')}>
-          <div className="sticky top-0 h-screen">
-            <Sidebar />
-          </div>
+        <Sidebar />
+      </div>
+
+      <div
+        className={cn(
+          'flex min-h-screen min-w-0 flex-col',
+          mainOffsetClass(isParteOperativoFlow),
+          isParteOperativoFlow && 'max-lg:max-w-2xl max-lg:mx-auto'
+        )}
+      >
+        <div className={cn(isParteOperativoFlow && 'hidden lg:block')}>
+          <Topbar title={title} onToggleSidebar={() => setMobileOpen(true)} />
         </div>
 
-        <div className="min-w-0">
-          <div className={cn(isParteOperativoFlow && 'hidden lg:block')}>
-            <Topbar title={title} onToggleSidebar={() => setMobileOpen(true)} />
-          </div>
-
-          <main className="min-w-0 overflow-x-hidden px-4 py-6 md:px-6">
-            <div
-              className={cn(
-                'mx-auto w-full min-w-0 max-w-full',
-                isParteOperativoFlow && 'max-lg:max-w-2xl'
-              )}
-            >
-              {children}
-            </div>
-          </main>
-        </div>
+        <main className="min-w-0 flex-1 overflow-x-hidden px-4 py-6 md:px-6">
+          <div className="w-full min-w-0">{children}</div>
+        </main>
       </div>
 
       {showChromeOnMobile && mobileOpen ? (
@@ -91,11 +100,7 @@ function AppShellInner({
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileOpen(false)}
           />
-          <div
-            className={cn(
-              'absolute left-0 top-0 h-full w-[min(320px,90vw)] shadow-[var(--shadow-app)]'
-            )}
-          >
+          <div className="absolute left-0 top-0 h-full w-[min(320px,90vw)] shadow-[var(--shadow-app)]">
             <Sidebar onNavigate={() => setMobileOpen(false)} />
           </div>
         </div>

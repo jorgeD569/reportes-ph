@@ -11,6 +11,11 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get, post } from '@/lib/api'
 import { routes } from '@/lib/constants/routes'
+import {
+  COORD_BTN_PRIMARY,
+  COORD_BTN_SECONDARY,
+  COORD_INPUT_LG,
+} from '@/lib/coordinador/theme'
 import { formatFechaSoloDia } from '@/lib/date'
 import {
   parteOperativoPdfUrl,
@@ -26,12 +31,6 @@ import type {
   GetPartesOperativosResponse,
   ParteOperativoListItem,
 } from '@/lib/types/partes-operativos'
-
-const btnPrimary =
-  'inline-flex h-9 items-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-3 text-sm font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60'
-
-const btnSecondary =
-  'inline-flex h-9 items-center rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-app hover:bg-surface-2 disabled:cursor-not-allowed disabled:opacity-60'
 
 function unidadLabel(parte: ParteOperativoListItem) {
   return parte.unidad || parte.unidad_pesada || '—'
@@ -142,7 +141,7 @@ export function PartesOperativosClient() {
         <CardBody>
           <div className="mb-4">
             <input
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 md:max-w-lg"
+              className={`${COORD_INPUT_LG} md:max-w-lg`}
               placeholder="Buscar por N° parte, pozo, yacimiento, operadora o unidad…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -224,7 +223,7 @@ export function PartesOperativosClient() {
                               href={routes.operador.parteOperativo(p.id)}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className={btnSecondary}
+                              className={COORD_BTN_SECONDARY}
                             >
                               Ver / Continuar
                             </Link>
@@ -233,7 +232,7 @@ export function PartesOperativosClient() {
                                 href={pdfUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={btnPrimary}
+                                className={COORD_BTN_PRIMARY}
                               >
                                 Ver PDF
                               </a>
@@ -241,7 +240,7 @@ export function PartesOperativosClient() {
                             {puedeCerrar ? (
                               <button
                                 type="button"
-                                className={btnPrimary}
+                                className={COORD_BTN_PRIMARY}
                                 disabled={cerrandoId === p.id}
                                 onClick={() => void cerrarYGenerarPdf(p)}
                               >

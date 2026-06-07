@@ -1,5 +1,5 @@
-import { GestionInventarioClient } from './GestionInventarioClient'
+import { GestionDashboardClient } from './GestionDashboardClient'
 
 export default function CoordinadorInventarioGestionPage() {
-  return <GestionInventarioClient />
+  return <GestionDashboardClient />
 }

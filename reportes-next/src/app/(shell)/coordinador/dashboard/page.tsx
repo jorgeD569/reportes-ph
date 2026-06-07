@@ -8,6 +8,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { routes } from '@/lib/constants/routes'
+import { COORD_SECTION_MUTED } from '@/lib/coordinador/theme'
 import { get } from '@/lib/api'
 import type { GetReportesPhResponse } from '@/lib/types/reportes'
 import type { GetPartesOperativosResponse } from '@/lib/types/partes-operativos'
@@ -29,10 +30,8 @@ function KpiCard({
   const content = (
     <div className="flex items-end justify-between gap-4">
       <div>
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted">
-          {label}
-        </div>
-        <div className="mt-2 text-3xl font-semibold tracking-tight">{value}</div>
+        <div className={COORD_SECTION_MUTED}>{label}</div>
+        <div className="mt-2 text-3xl font-semibold tracking-tight text-white">{value}</div>
       </div>
       {badge}
     </div>

@@ -10,6 +10,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { routes } from '@/lib/constants/routes'
+import { COORD_BTN_PRIMARY } from '@/lib/coordinador/theme'
 import { get, post } from '@/lib/api'
 import type { GetReportePhDetalleResponse, Parte } from '@/lib/types/reportes'
 import { formatDateTimeEsAr, formatFechaSoloDia } from '@/lib/date'
@@ -543,7 +544,7 @@ export default function CoordinadorReportePhDetallePage() {
                     !selectedBase64
                   }
                   onClick={handleUploadWika}
-                  className="h-11 rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-4 text-sm font-semibold text-white hover:opacity-95 disabled:opacity-60"
+                  className={COORD_BTN_PRIMARY}
                 >
                   {uploadingWika ? 'Subiendo…' : 'Subir WIKA'}
                 </button>

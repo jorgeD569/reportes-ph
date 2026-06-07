@@ -12,7 +12,14 @@
  */
 
 import * as React from 'react'
+import Link from 'next/link'
 import { GestionInventarioGate } from '@/components/coordinador/inventario/GestionInventarioGate'
+import {
+  COORD_INPUT_LG,
+  COORD_TEXTAREA,
+  COORD_BTN_PRIMARY_LG,
+} from '@/lib/coordinador/theme'
+import { routes } from '@/lib/constants/routes'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -87,11 +94,11 @@ function FieldRow({
 }
 
 function inputClass() {
-  return 'mt-2 h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10'
+  return `mt-2 ${COORD_INPUT_LG}`
 }
 
 function textareaClass() {
-  return 'mt-2 min-h-[96px] w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10'
+  return `mt-2 ${COORD_TEXTAREA}`
 }
 
 export function GestionInventarioClient() {
@@ -249,6 +256,12 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
         subtitle="Alta, movimientos y trazabilidad de activos y consumibles."
         right={
           <>
+            <Link
+              href={routes.coordinador.inventario.gestion}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+            >
+              Volver al panel
+            </Link>
             <StatusBadge variant="warning">Acceso restringido</StatusBadge>
             <button
               type="button"
@@ -427,7 +440,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             </div>
             <div className="mt-6 flex flex-wrap gap-2">
               <button type="button" onClick={previewActivo}
-                className="h-11 rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white hover:opacity-95">
+                className={COORD_BTN_PRIMARY_LG}>
                 Vista previa
               </button>
             </div>
@@ -520,7 +533,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             </div>
             <div className="mt-6">
               <button type="button" onClick={previewConsumible}
-                className="h-11 rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white hover:opacity-95">
+                className={COORD_BTN_PRIMARY_LG}>
                 Vista previa
               </button>
             </div>
@@ -641,7 +654,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             </div>
             <div className="mt-6">
               <button type="button" onClick={previewMovActivo}
-                className="h-11 rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white hover:opacity-95">
+                className={COORD_BTN_PRIMARY_LG}>
                 Vista previa
               </button>
             </div>
@@ -764,7 +777,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             </div>
             <div className="mt-6">
               <button type="button" onClick={previewMovConsumible}
-                className="h-11 rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-5 text-sm font-semibold text-white hover:opacity-95">
+                className={COORD_BTN_PRIMARY_LG}>
                 Vista previa
               </button>
             </div>

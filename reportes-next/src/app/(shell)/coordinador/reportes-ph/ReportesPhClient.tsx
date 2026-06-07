@@ -7,10 +7,17 @@ import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { LoadingState } from '@/components/ui/LoadingState'
-import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
+import { ModernTable, Td, Th, Tr } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { routes } from '@/lib/constants/routes'
+import {
+  COORD_BTN_LINK,
+  COORD_BTN_PRIMARY,
+  COORD_INPUT_LG,
+  COORD_SECTION_MUTED,
+  COORD_SECTION_TITLE,
+} from '@/lib/coordinador/theme'
 import { get } from '@/lib/api'
 import type { GetReportesPhResponse, ReportePhListItem } from '@/lib/types/reportes'
 import { formatDateDDMMYYYY } from '@/lib/date'
@@ -76,16 +83,10 @@ export function ReportesPhClient() {
         subtitle="Listado de reportes cargados."
         right={
           <div className="flex items-center gap-2">
-            <Link
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
-              href={`${routes.coordinador.reportesPh}?estado=pendiente`}
-            >
+            <Link className={COORD_BTN_LINK} href={`${routes.coordinador.reportesPh}?estado=pendiente`}>
               Pendientes
             </Link>
-            <Link
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
-              href={`${routes.coordinador.reportesPh}?estado=cerrado`}
-            >
+            <Link className={COORD_BTN_LINK} href={`${routes.coordinador.reportesPh}?estado=cerrado`}>
               Cerrados
             </Link>
           </div>
@@ -95,8 +96,8 @@ export function ReportesPhClient() {
       <Card>
         <CardHeader>
           <div>
-            <div className="text-lg font-semibold">Listado</div>
-            <div className="mt-1 text-sm text-muted">
+            <div className={COORD_SECTION_TITLE}>Listado</div>
+            <div className={COORD_SECTION_MUTED}>
               Datos en vivo desde <code className="font-mono">GET /reportes-ph</code>.
             </div>
           </div>
@@ -104,7 +105,7 @@ export function ReportesPhClient() {
         <CardBody>
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <input
-              className="h-11 w-full rounded-xl border border-border bg-surface px-3 text-sm outline-none placeholder:text-muted focus:ring-4 focus:ring-black/5 dark:focus:ring-white/10 md:max-w-md"
+              className={`${COORD_INPUT_LG} md:max-w-md`}
               placeholder="Buscar por reporte, pozo o cliente…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -156,7 +157,7 @@ export function ReportesPhClient() {
                 ? filtered.map((r) => {
                     const st = reportePhState(r)
                     return (
-                      <tr key={r.id}>
+                      <Tr key={r.id}>
                         <Td className="font-semibold">{r.reporte_numero || ''}</Td>
                         <Td>{formatDateDDMMYYYY(r.fecha)}</Td>
                         <Td>{r.cliente || ''}</Td>
@@ -178,12 +179,12 @@ export function ReportesPhClient() {
                         <Td className="text-right">
                           <Link
                             href={routes.coordinador.reportePhDetalle(r.id)}
-                            className="inline-flex h-9 items-center rounded-xl bg-[linear-gradient(135deg,var(--color-brand),var(--color-brand-2))] px-3 text-sm font-semibold text-white hover:opacity-95"
+                            className={COORD_BTN_PRIMARY}
                           >
                             Ver
                           </Link>
                         </Td>
-                      </tr>
+                      </Tr>
                     )
                   })
                 : null}

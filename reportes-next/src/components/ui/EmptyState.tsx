@@ -1,3 +1,7 @@
+'use client'
+
+import { useCoordinadorTheme } from '@/components/coordinador/CoordinadorThemeProvider'
+import { COORD_EMPTY } from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
 
 export function EmptyState({
@@ -11,19 +15,24 @@ export function EmptyState({
   action?: React.ReactNode
   className?: string
 }) {
+  const isCoordinador = useCoordinadorTheme()
+
   return (
     <div
       className={cn(
-        'rounded-2xl border border-border bg-surface-2 p-6 text-center',
+        isCoordinador
+          ? COORD_EMPTY
+          : 'rounded-2xl border border-border bg-surface-2 p-6 text-center',
         className
       )}
     >
-      <div className="text-sm font-semibold">{title}</div>
+      <div className={cn('text-sm font-semibold', isCoordinador && 'text-white')}>{title}</div>
       {description ? (
-        <div className="mt-1 text-sm text-muted">{description}</div>
+        <div className={cn('mt-1 text-sm', isCoordinador ? 'text-sky-200/70' : 'text-muted')}>
+          {description}
+        </div>
       ) : null}
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   )
 }
-

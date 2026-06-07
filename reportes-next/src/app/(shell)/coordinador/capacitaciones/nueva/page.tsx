@@ -8,16 +8,20 @@ import { InlineMessage } from '@/components/ui/InlineMessage'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { CursoBloquesEditor } from '@/components/capacitaciones/CursoBloquesEditor'
 import {
-  btnPrimaryClass,
-  btnSecondaryClass,
-  inputClass,
-  labelClass,
-  textareaClass,
-} from '@/components/capacitaciones/capacitaciones-form-styles'
+  COORD_BTN_PRIMARY_LG,
+  COORD_BTN_SECONDARY_LG,
+  COORD_INPUT_LG,
+  COORD_LABEL,
+  COORD_TEXTAREA,
+} from '@/lib/coordinador/theme'
 import { createBloque, normalizeBloquesOrden } from '@/lib/capacitaciones/bloques'
 import { createCapacitacion } from '@/lib/capacitaciones/api'
 import { routes } from '@/lib/constants/routes'
 import type { CapacitacionBloque, CreateCapacitacionInput } from '@/lib/types/capacitaciones'
+
+const labelClass = `${COORD_LABEL} mb-1.5 block`
+const inputClass = COORD_INPUT_LG
+const textareaClass = COORD_TEXTAREA
 
 function contenidoResumenFromBloques(bloques: CapacitacionBloque[]): string {
   return bloques
@@ -93,7 +97,7 @@ export default function NuevaCapacitacionPage() {
         title="Nueva capacitación"
         subtitle="Armá el curso por bloques. Guardado local (MVP)."
         right={
-          <Link href={routes.coordinador.capacitaciones} className={btnSecondaryClass}>
+          <Link href={routes.coordinador.capacitaciones} className={COORD_BTN_SECONDARY_LG}>
             Volver al listado
           </Link>
         }
@@ -210,10 +214,10 @@ export default function NuevaCapacitacionPage() {
         <CursoBloquesEditor bloques={bloques} onChange={setBloques} disabled={saving} />
 
         <div className="flex flex-wrap gap-3">
-          <button type="submit" className={btnPrimaryClass} disabled={saving}>
+          <button type="submit" className={COORD_BTN_PRIMARY_LG} disabled={saving}>
             {saving ? 'Guardando…' : 'Guardar capacitación'}
           </button>
-          <Link href={routes.coordinador.capacitaciones} className={btnSecondaryClass}>
+          <Link href={routes.coordinador.capacitaciones} className={COORD_BTN_SECONDARY_LG}>
             Cancelar
           </Link>
         </div>

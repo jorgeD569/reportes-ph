@@ -13,9 +13,9 @@ import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import {
-  btnPrimaryClass,
-  btnSecondaryClass,
-} from '@/components/capacitaciones/capacitaciones-form-styles'
+  COORD_BTN_PRIMARY_LG,
+  COORD_BTN_SECONDARY_LG,
+} from '@/lib/coordinador/theme'
 import { CursoBloquesPreview } from '@/components/capacitaciones/CursoBloquesPreview'
 import {
   assignCapacitacionToOperadores,
@@ -116,7 +116,7 @@ export function CapacitacionDetalleClient() {
       <EmptyState
         title="Capacitación no encontrada"
         action={
-          <Link href={routes.coordinador.capacitaciones} className={btnSecondaryClass}>
+          <Link href={routes.coordinador.capacitaciones} className={COORD_BTN_SECONDARY_LG}>
             Volver al listado
           </Link>
         }
@@ -131,12 +131,12 @@ export function CapacitacionDetalleClient() {
         subtitle={`Versión ${cap.version} · Capacitaciones HSE`}
         right={
           <div className="flex flex-wrap gap-2">
-            <Link href={routes.coordinador.capacitaciones} className={btnSecondaryClass}>
+            <Link href={routes.coordinador.capacitaciones} className={COORD_BTN_SECONDARY_LG}>
               Volver
             </Link>
             <button
               type="button"
-              className={btnPrimaryClass}
+              className={COORD_BTN_PRIMARY_LG}
               onClick={() => {
                 setError(null)
                 setModalOpen(true)
@@ -230,7 +230,7 @@ export function CapacitacionDetalleClient() {
           <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
-              className={btnSecondaryClass}
+              className={COORD_BTN_SECONDARY_LG}
               onClick={() => setModalOpen(false)}
               disabled={assigning}
             >
@@ -238,7 +238,7 @@ export function CapacitacionDetalleClient() {
             </button>
             <button
               type="button"
-              className={btnPrimaryClass}
+              className={COORD_BTN_PRIMARY_LG}
               onClick={() => void onAssign()}
               disabled={assigning || selectedOperadores.length === 0}
             >
