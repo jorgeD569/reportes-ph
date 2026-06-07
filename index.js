@@ -1,9 +1,58 @@
   require('dotenv').config()
   const express = require('express')
   const cors = require('cors')
+  const crypto = require('crypto')
   const { createClient } = require('@supabase/supabase-js')
+  const bcrypt = require('bcryptjs')
   const nodemailer = require('nodemailer')
   const { chromium } = require('playwright')
+
+  const BCRYPT_ROUNDS = 10
+  const MIN_PASSWORD_LENGTH = 8
+
+  function generateTemporaryPassword(length = 10) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    const bytes = crypto.randomBytes(length)
+    let result = ''
+    for (let i = 0; i < length; i += 1) {
+      result += chars[bytes[i] % chars.length]
+    }
+    return result
+  }
+
+  async function hashPassword(password) {
+    return bcrypt.hash(String(password), BCRYPT_ROUNDS)
+  }
+
+  async function verifyUsuarioPassword(userId, password, storedHash) {
+    if (storedHash) {
+      try {
+        const passwordOk = await bcrypt.compare(String(password), String(storedHash))
+        if (passwordOk) return true
+      } catch (compareError) {
+        console.warn('bcrypt.compare falló, probando compatibilidad texto plano:', compareError.message)
+      }
+    }
+
+    if (password === storedHash) {
+      const passwordHash = await hashPassword(password)
+      const { error } = await supabase
+        .from('usuarios_app')
+        .update({
+          password_hash: passwordHash,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', userId)
+
+      if (error) {
+        console.error('Error migrando password_hash a bcrypt:', error)
+      }
+
+      return true
+    }
+
+    return false
+  }
 
   const app = express()
   app.use(cors())
@@ -23,6 +72,72 @@
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
+
+  app.post('/login', async (req, res) => {
+    try {
+      const { usuario, password } = req.body
+
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .select('id, nombre, usuario, email, rol, activo, password_hash, requiere_cambio_password')
+        .eq('usuario', usuario)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error en login:', error)
+        return res.status(500).json({
+          ok: false,
+          error: 'Error interno en login',
+        })
+      }
+
+      if (!data) {
+        return res.status(401).json({
+          ok: false,
+          error: 'Usuario o contraseña incorrectos',
+        })
+      }
+
+      if (!data.activo) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Usuario inactivo',
+        })
+      }
+
+      const passwordOk = await verifyUsuarioPassword(
+        data.id,
+        password,
+        data.password_hash
+      )
+
+      if (!passwordOk) {
+        return res.status(401).json({
+          ok: false,
+          error: 'Usuario o contraseña incorrectos',
+        })
+      }
+
+      res.json({
+        ok: true,
+        usuario: {
+          id: data.id,
+          nombre: data.nombre,
+          usuario: data.usuario,
+          email: data.email,
+          rol: data.rol,
+          requiere_cambio_password: Boolean(data.requiere_cambio_password),
+        },
+      })
+    } catch (err) {
+      console.error('Error interno en login:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error interno en login',
+      })
+    }
+  })
 
   // SMTP (puede fallar: no debe romper el motor)
   const transporter = nodemailer.createTransport({
@@ -63,6 +178,108 @@
       return `${day}/${month}/${year}`
     }
     return fecha
+  }
+
+  function limpiarNombreArchivo(texto, maxLength = 120) {
+    if (texto == null || texto === '') return 'SIN DATO'
+    let s = String(texto)
+      .replace(/,/g, ' ')
+      .replace(/\./g, ' ')
+      .replace(/[/\\:*?"<>|]/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (!s) return 'SIN DATO'
+    if (s.length > maxLength) s = s.slice(0, maxLength).trim()
+    return s
+  }
+
+  function formatearFechaNombreArchivo(fecha) {
+    if (!fecha) return 'SIN FECHA'
+    const str = String(fecha).trim()
+    const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`
+    const latam = str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/)
+    if (latam) {
+      const day = latam[1].padStart(2, '0')
+      const month = latam[2].padStart(2, '0')
+      return `${day}-${month}-${latam[3]}`
+    }
+    return limpiarNombreArchivo(str, 20)
+  }
+
+  function buildReportePhPdfFileName(parte) {
+    const pozo = limpiarNombreArchivo(parte?.pozo, 40)
+    const fecha = formatearFechaNombreArchivo(parte?.fecha)
+    const elemento = limpiarNombreArchivo(parte?.elemento_ensayar, 100)
+    const prefix = `REPORTE DE PH - ${pozo} - ${fecha} - `
+    const maxTotal = 200
+    const suffix = '.pdf'
+    const maxElemento = Math.max(10, maxTotal - prefix.length - suffix.length)
+    const elementoFinal =
+      elemento.length > maxElemento ? elemento.slice(0, maxElemento).trim() : elemento
+    return `${prefix}${elementoFinal}${suffix}`
+  }
+
+  async function storagePdfPathExists(bucket, fileName) {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list('', { search: fileName, limit: 20 })
+
+    if (error) {
+      console.warn('No se pudo verificar existencia de PDF en Storage:', error.message)
+      return false
+    }
+
+    return (data || []).some((item) => item.name === fileName)
+  }
+
+  function buildParteOperativoPdfFileName(parte) {
+    const fecha = formatearFechaNombreArchivo(parte?.fecha)
+    const pozo = limpiarNombreArchivo(parte?.pozo, 80)
+    const prefix = `PARTE OPERATIVO - ${fecha} - `
+    const maxTotal = 200
+    const suffix = '.pdf'
+    const maxPozo = Math.max(10, maxTotal - prefix.length - suffix.length)
+    const pozoFinal = pozo.length > maxPozo ? pozo.slice(0, maxPozo).trim() : pozo
+    return `${prefix}${pozoFinal}${suffix}`
+  }
+
+  async function resolveUniqueParteOperativoPdfPath(parte) {
+    const bucket = process.env.BUCKET_PDF
+    const baseName = buildParteOperativoPdfFileName(parte)
+
+    if (!(await storagePdfPathExists(bucket, baseName))) {
+      return baseName
+    }
+
+    if (parte?.numero_parte != null && String(parte.numero_parte).trim() !== '') {
+      const withNumero = baseName.replace(/\.pdf$/i, ` - PARTE ${parte.numero_parte}.pdf`)
+      if (!(await storagePdfPathExists(bucket, withNumero))) {
+        return withNumero
+      }
+    }
+
+    const stamp = Date.now().toString().slice(-8)
+    return baseName.replace(/\.pdf$/i, ` - ${stamp}.pdf`)
+  }
+
+  async function resolveUniqueReportePhPdfPath(parte) {
+    const bucket = process.env.BUCKET_PDF
+    const baseName = buildReportePhPdfFileName(parte)
+
+    if (!(await storagePdfPathExists(bucket, baseName))) {
+      return baseName
+    }
+
+    if (parte?.reporte_numero != null && String(parte.reporte_numero).trim() !== '') {
+      const withNumero = baseName.replace(/\.pdf$/i, ` - REPORTE N° ${parte.reporte_numero}.pdf`)
+      if (!(await storagePdfPathExists(bucket, withNumero))) {
+        return withNumero
+      }
+    }
+
+    const stamp = Date.now().toString().slice(-8)
+    return baseName.replace(/\.pdf$/i, ` - ${stamp}.pdf`)
   }
 
   function formatFechaPdf(fecha) {
@@ -1084,14 +1301,22 @@ async function registrarMovimiento({
     }
   })
 
-      const cleanParteId = String(parte_id).toLowerCase()
-      const pdfPath = `reporte_${cleanParteId}_${Date.now()}.pdf`
+      const pdfPath = await resolveUniqueReportePhPdfPath(data)
+
+      console.log('DEBUG PH PDF PATH:', {
+        parte_id,
+        reporte_numero: data.reporte_numero,
+        pozo: data.pozo,
+        fecha: data.fecha,
+        elemento_ensayar: data.elemento_ensayar,
+        pdfPath,
+      })
 
       const { error: pdfErr } = await supabase.storage
         .from(process.env.BUCKET_PDF)
         .upload(pdfPath, pdfBuffer, {
           contentType: 'application/pdf',
-          upsert: true,
+          upsert: false,
         })
 
       if (pdfErr) throw pdfErr
@@ -1681,6 +1906,140 @@ app.post('/partes-operativos', async (req, res) => {
   }
 })
 
+async function loadParteOperativoRelaciones(parteId) {
+  const { data: servicios, error: errorServicios } = await supabase
+    .from('partes_operativos_servicios')
+    .select('*')
+    .eq('parte_id', parteId)
+    .order('pos', { ascending: true })
+
+  if (errorServicios) throw errorServicios
+
+  const { data: pruebasPhLinks, error: errorPruebasPh } = await supabase
+    .from('partes_operativos_ph')
+    .select('*')
+    .eq('parte_operativo_id', parteId)
+    .order('created_at', { ascending: true })
+
+  if (errorPruebasPh) throw errorPruebasPh
+
+  const reportePhIds = (pruebasPhLinks || [])
+    .map((row) => row.reporte_ph_id)
+    .filter(Boolean)
+
+  let partesPhById = {}
+
+  if (reportePhIds.length > 0) {
+    const { data: partesPhRows, error: errorPartesPhRows } = await supabase
+      .from('partes')
+      .select('id, reporte_numero, tipo_prueba, elemento_ensayar, resultado_ensayo, reporte_pdf_path')
+      .in('id', reportePhIds)
+
+    if (errorPartesPhRows) throw errorPartesPhRows
+
+    partesPhById = Object.fromEntries((partesPhRows || []).map((p) => [p.id, p]))
+  }
+
+  const pruebas_ph = (pruebasPhLinks || []).map((link) => {
+    const ph = partesPhById[link.reporte_ph_id] || {}
+    return {
+      ...link,
+      reporte_numero: ph.reporte_numero ?? link.numero_parte ?? null,
+      tipo_prueba: ph.tipo_prueba ?? link.tipo_prueba ?? null,
+      elemento_ensayar: ph.elemento_ensayar ?? link.valvula ?? null,
+      resultado_ensayo: ph.resultado_ensayo ?? link.resultado_ensayo ?? null,
+      reporte_pdf_path: ph.reporte_pdf_path ?? null,
+    }
+  })
+
+  return { servicios: servicios || [], pruebas_ph }
+}
+
+async function loadHistorialParteOperativo(parteId) {
+  const { data, error } = await supabase
+    .from('historial_partes_operativos')
+    .select('*')
+    .eq('parte_id', parteId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.warn('Historial de partes operativos no disponible:', error.message)
+    return []
+  }
+  return data || []
+}
+
+function normalizarMotivo(motivo) {
+  return typeof motivo === 'string' ? motivo.trim() : ''
+}
+
+function formatSupabaseError(error) {
+  if (!error) return 'Error desconocido'
+  if (typeof error === 'string') return error
+  return [error.message, error.details, error.hint, error.code].filter(Boolean).join(' | ')
+}
+
+async function insertarHistorialParteOperativo(historialPayload, contextLabel = 'HISTORIAL') {
+  console.log(`INSERT HISTORIAL PAYLOAD (${contextLabel}):`, historialPayload)
+
+  const { data, error: historialError } = await supabase
+    .from('historial_partes_operativos')
+    .insert([historialPayload])
+    .select('id')
+    .single()
+
+  if (historialError) {
+    console.error('ERROR INSERT HISTORIAL:', historialError)
+    const err = new Error(`Error insertando historial: ${formatSupabaseError(historialError)}`)
+    err.historialError = historialError
+    throw err
+  }
+
+  console.log(`INSERT HISTORIAL OK (${contextLabel}):`, data?.id)
+  return data
+}
+
+async function registrarHistorialParteOperativo({
+  parte_id,
+  usuario,
+  accion,
+  motivo,
+  estado_anterior = null,
+  estado_nuevo = null,
+  datos_modificados = null,
+  contextLabel = 'HISTORIAL',
+}) {
+  const motivoLimpio = normalizarMotivo(motivo)
+  if (!motivoLimpio) {
+    throw new Error('El motivo es obligatorio para registrar el historial')
+  }
+
+  const historialPayload = {
+    parte_id,
+    usuario: usuario ? String(usuario).trim() : null,
+    accion,
+    motivo: motivoLimpio,
+    estado_anterior,
+    estado_nuevo,
+    datos_modificados,
+  }
+
+  return insertarHistorialParteOperativo(historialPayload, contextLabel)
+}
+
+function diffParteOperativoCampos(parteAnterior, patch) {
+  const cambios = {}
+  for (const [key, nuevo] of Object.entries(patch)) {
+    const anterior = parteAnterior[key]
+    const a = anterior == null || anterior === '' ? '' : String(anterior)
+    const n = nuevo == null || nuevo === '' ? '' : String(nuevo)
+    if (a !== n) {
+      cambios[key] = { anterior: parteAnterior[key] ?? null, nuevo: nuevo ?? null }
+    }
+  }
+  return Object.keys(cambios).length > 0 ? cambios : null
+}
+
 // OBTENER PARTE POR ID
 app.get('/partes-operativos/:id', async (req, res) => {
   try {
@@ -1695,9 +2054,17 @@ app.get('/partes-operativos/:id', async (req, res) => {
 
     if (error) throw error
 
+    const { servicios, pruebas_ph } = await loadParteOperativoRelaciones(id)
+    const historial = await loadHistorialParteOperativo(id)
+    const pdf_path = resolveParteOperativoPdfPath(data)
+    const pdf_url = buildParteOperativoPdfUrl(pdf_path)
+
     res.json({
       ok: true,
-      parte: data
+      parte: { ...data, pdf_path, pdf_url },
+      servicios,
+      pruebas_ph,
+      historial,
     })
 
   } catch (error) {
@@ -1760,14 +2127,205 @@ app.put('/partes-operativos/:id', async (req, res) => {
   }
 })
 
+// ACTUALIZAR PARTE (administración — permite editar partes cerrados)
+app.put('/partes-operativos/:id/admin', async (req, res) => {
+  try {
+    const { id } = req.params
+    const body = req.body || {}
+
+    console.log('ADMIN UPDATE BODY:', req.body)
+    console.log('ADMIN UPDATE PARTE ID:', req.params.id)
+
+    const motivo = normalizarMotivo(body.motivo)
+    const usuario = body.usuario ? String(body.usuario).trim() : null
+
+    const { data: parteActual, error: errorParte } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorParte) throw errorParte
+
+    const allowed = [
+      'fecha',
+      'pozo',
+      'yacimiento',
+      'operadora',
+      'contratista',
+      'unidad_pesada',
+      'salida_desde',
+      'km',
+      'supervisor_operativo',
+      'operador_1',
+      'operador_2',
+      'operador_3',
+      'observaciones',
+      'estado',
+    ]
+
+    const patch = {}
+    for (const key of allowed) {
+      if (Object.prototype.hasOwnProperty.call(body, key)) {
+        patch[key] = body[key]
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return res.status(400).json({ ok: false, error: 'No hay campos para actualizar' })
+    }
+
+    if (patch.estado != null) {
+      const estado = String(patch.estado).trim().toLowerCase()
+      if (estado !== 'abierto' && estado !== 'cerrado') {
+        return res.status(400).json({ ok: false, error: 'Estado inválido' })
+      }
+      patch.estado = estado
+    }
+
+    const estabaCerrado = parteActual.estado === 'cerrado'
+    if (estabaCerrado && !motivo) {
+      return res.status(400).json({
+        ok: false,
+        error: 'El motivo es obligatorio para modificar un parte cerrado',
+      })
+    }
+
+    const datosModificados = diffParteOperativoCampos(parteActual, patch)
+    const estadoAnterior = parteActual.estado ?? null
+    const estadoNuevo = patch.estado ?? parteActual.estado ?? null
+
+    const { data, error } = await supabase
+      .from('partes_operativos')
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    const debeAuditar = Boolean(datosModificados) || (estabaCerrado && motivo)
+
+    console.log('ADMIN UPDATE AUDITORIA:', {
+      debeAuditar,
+      datosModificados,
+      estabaCerrado,
+      motivo,
+      estadoAnterior,
+      estadoNuevo,
+    })
+
+    if (debeAuditar) {
+      await registrarHistorialParteOperativo({
+        parte_id: id,
+        usuario,
+        accion: 'MODIFICACION_ADMINISTRATIVA',
+        motivo: motivo || 'Actualización administrativa (parte abierto)',
+        estado_anterior: estadoAnterior,
+        estado_nuevo: estadoNuevo,
+        datos_modificados: datosModificados,
+        contextLabel: 'ADMIN',
+      })
+    }
+
+    const pdf_path = resolveParteOperativoPdfPath(data)
+    const pdf_url = buildParteOperativoPdfUrl(pdf_path)
+
+    res.json({ ok: true, parte: { ...data, pdf_path, pdf_url } })
+  } catch (error) {
+    console.error('Error actualizando parte operativo (admin):', error)
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+      historialError: error.historialError ? formatSupabaseError(error.historialError) : undefined,
+    })
+  }
+})
+
+// REABRIR PARTE CERRADO
+app.post('/partes-operativos/:id/reabrir', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    console.log('REABRIR BODY:', req.body)
+    console.log('REABRIR PARTE ID:', req.params.id)
+
+    const motivo = normalizarMotivo(req.body?.motivo)
+    const usuario = req.body?.usuario ? String(req.body.usuario).trim() : null
+
+    if (!motivo) {
+      return res.status(400).json({
+        ok: false,
+        error: 'El motivo es obligatorio para reabrir el parte',
+      })
+    }
+
+    const { data: parte, error: errorParte } = await supabase
+      .from('partes_operativos')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (errorParte) throw errorParte
+
+    if (parte.estado !== 'cerrado') {
+      return res.status(400).json({
+        ok: false,
+        error: 'El parte no está cerrado',
+      })
+    }
+
+    const { data, error } = await supabase
+      .from('partes_operativos')
+      .update({
+        estado: 'abierto',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    await registrarHistorialParteOperativo({
+      parte_id: id,
+      usuario,
+      accion: 'PARTE_REABIERTO',
+      motivo,
+      estado_anterior: 'cerrado',
+      estado_nuevo: 'abierto',
+      datos_modificados: { pdf_path_anterior: resolveParteOperativoPdfPath(parte) },
+      contextLabel: 'REABRIR',
+    })
+
+    res.json({ ok: true, parte: data })
+  } catch (error) {
+    console.error('Error reabriendo parte operativo:', error)
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+      historialError: error.historialError ? formatSupabaseError(error.historialError) : undefined,
+    })
+  }
+})
+
 // GUARDAR SERVICIOS
 app.post('/partes-operativos/:id/servicios', async (req, res) => {
   try {
 
     const { id } = req.params
-    const { servicios } = req.body
+    const { servicios, admin, motivo, usuario } = req.body
+    const esAdmin = admin === true
+    const motivoLimpio = normalizarMotivo(motivo)
 
-    if (!Array.isArray(servicios) || servicios.length === 0) {
+    if (!Array.isArray(servicios)) {
+      return res.status(400).json({
+        ok: false,
+        error: 'No se recibieron servicios para guardar'
+      })
+    }
+
+    if (!esAdmin && servicios.length === 0) {
       return res.status(400).json({
         ok: false,
         error: 'No se recibieron servicios para guardar'
@@ -1782,17 +2340,33 @@ app.post('/partes-operativos/:id/servicios', async (req, res) => {
 
     if (errorParte) throw errorParte
 
-    if (parte.estado === 'cerrado') {
+    if (!esAdmin && parte.estado === 'cerrado') {
       return res.status(400).json({
         ok: false,
         error: 'El parte ya está cerrado'
       })
     }
 
+    if (esAdmin && parte.estado === 'cerrado' && !motivoLimpio) {
+      return res.status(400).json({
+        ok: false,
+        error: 'El motivo es obligatorio para modificar servicios de un parte cerrado',
+      })
+    }
+
+    const { data: serviciosAnteriores } = await supabase
+      .from('partes_operativos_servicios')
+      .select('*')
+      .eq('parte_id', id)
+
     await supabase
       .from('partes_operativos_servicios')
       .delete()
       .eq('parte_id', id)
+
+    if (servicios.length === 0) {
+      return res.json({ ok: true, servicios: [] })
+    }
 
     const payload = servicios.map((servicio) => ({
       parte_id: id,
@@ -1811,6 +2385,34 @@ app.post('/partes-operativos/:id/servicios', async (req, res) => {
 
     if (error) throw error
 
+    const serviciosCambiaron =
+      JSON.stringify(serviciosAnteriores || []) !== JSON.stringify(data || [])
+
+    if (esAdmin && motivoLimpio && serviciosCambiaron) {
+      console.log('SERVICIOS ADMIN AUDITORIA:', {
+        parteId: id,
+        motivo: motivoLimpio,
+        usuario,
+        serviciosCambiaron,
+      })
+
+      await registrarHistorialParteOperativo({
+        parte_id: id,
+        usuario: usuario ? String(usuario).trim() : null,
+        accion: 'MODIFICACION_ADMINISTRATIVA',
+        motivo: motivoLimpio,
+        estado_anterior: parte.estado ?? null,
+        estado_nuevo: parte.estado ?? null,
+        datos_modificados: {
+          servicios: {
+            anterior: serviciosAnteriores || [],
+            nuevo: data || [],
+          },
+        },
+        contextLabel: 'SERVICIOS_ADMIN',
+      })
+    }
+
     res.json({
       ok: true,
       servicios: data
@@ -1822,7 +2424,8 @@ app.post('/partes-operativos/:id/servicios', async (req, res) => {
 
     res.status(500).json({
       ok: false,
-      error: error.message
+      error: error.message,
+      historialError: error.historialError ? formatSupabaseError(error.historialError) : undefined,
     })
   }
 })
@@ -1845,7 +2448,22 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
 
     if (errorParte) throw errorParte
 
-    if (parte.estado === 'cerrado') {
+    const regenerar = req.body?.regenerar === true
+    const motivo = normalizarMotivo(req.body?.motivo)
+    const usuario = req.body?.usuario ? String(req.body.usuario).trim() : null
+
+    console.log('CERRAR BODY:', req.body)
+    console.log('CERRAR PARTE ID:', req.params.id)
+    console.log('CERRAR REGENERAR:', regenerar)
+
+    if (regenerar && !motivo) {
+      return res.status(400).json({
+        ok: false,
+        error: 'El motivo es obligatorio para regenerar el PDF',
+      })
+    }
+
+    if (parte.estado === 'cerrado' && !regenerar) {
       return res.status(400).json({
         ok: false,
         error: 'El parte ya está cerrado'
@@ -2197,28 +2815,61 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
       },
     })
 
+    const pdfPathExistente = resolveParteOperativoPdfPath(parte)
     const pdfPath =
-      `parte_operativo_${parte.numero_parte}_${Date.now()}.pdf`
+      regenerar && pdfPathExistente
+        ? pdfPathExistente
+        : await resolveUniqueParteOperativoPdfPath(parte)
+
+    console.log('DEBUG PARTE OPERATIVO PDF PATH:', {
+      parte_id: id,
+      numero_parte: parte.numero_parte,
+      fecha: parte.fecha,
+      pozo: parte.pozo,
+      regenerar,
+      pdfPathExistente,
+      pdfPath,
+    })
 
     const { error: pdfError } = await supabase.storage
       .from(process.env.BUCKET_PDF)
       .upload(pdfPath, pdfBuffer, {
         contentType: 'application/pdf',
-        upsert: true
+        upsert: Boolean(regenerar && pdfPathExistente && pdfPath === pdfPathExistente),
       })
 
     if (pdfError) throw pdfError
 
+    const updatePayload = {
+      finalizado_at: new Date().toISOString(),
+      pdf_path: pdfPath,
+    }
+    if (!regenerar || parte.estado !== 'cerrado') {
+      updatePayload.estado = 'cerrado'
+    }
+
     const { error: errorUpdate } = await supabase
       .from('partes_operativos')
-      .update({
-        estado: 'cerrado',
-        finalizado_at: new Date().toISOString(),
-        pdf_path: pdfPath
-      })
+      .update(updatePayload)
       .eq('id', id)
 
     if (errorUpdate) throw errorUpdate
+
+    if (regenerar) {
+      await registrarHistorialParteOperativo({
+        parte_id: id,
+        usuario,
+        accion: 'PDF_REGENERADO',
+        motivo,
+        estado_anterior: 'cerrado',
+        estado_nuevo: 'cerrado',
+        datos_modificados: {
+          pdf_path: pdfPath,
+          pdf_path_anterior: pdfPathExistente || null,
+        },
+        contextLabel: 'PDF_REGENERADO',
+      })
+    }
 
     const { data: parteActualizado, error: errorRefetch } = await supabase
       .from('partes_operativos')
@@ -2247,7 +2898,8 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
 
     res.status(500).json({
       ok: false,
-      error: error.message
+      error: error.message,
+      historialError: error.historialError ? formatSupabaseError(error.historialError) : undefined,
     })
 
   } finally {
@@ -2257,6 +2909,491 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
 
   }
 })
+
+  // =========================
+  // USUARIOS APP
+  // =========================
+  const USUARIOS_APP_ROLES = ['operador', 'supervisor', 'coordinador', 'admin']
+  const USUARIOS_APP_SELECT =
+    'id, nombre, usuario, email, rol, activo, requiere_cambio_password, created_at, updated_at'
+
+  function sanitizeUsuarioApp(row) {
+    if (!row) return null
+    const { password_hash, ...safe } = row
+    return safe
+  }
+
+  function isValidUsuariosAppRol(rol) {
+    return USUARIOS_APP_ROLES.includes(String(rol || '').trim().toLowerCase())
+  }
+
+  function isDuplicateKeyError(error) {
+    return (
+      error?.code === '23505' ||
+      String(error?.message || '').toLowerCase().includes('duplicate')
+    )
+  }
+
+  function normalizeUsuarioAppEmail(email) {
+    if (email == null || String(email).trim() === '') return null
+    return String(email).trim()
+  }
+
+  function isValidUsuarioAppEmail(email) {
+    if (email == null) return true
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))
+  }
+
+  async function isUsuarioAppLoginTaken(usuario, excludeId = null) {
+    let query = supabase
+      .from('usuarios_app')
+      .select('id')
+      .eq('usuario', String(usuario).trim())
+      .is('deleted_at', null)
+
+    if (excludeId) {
+      query = query.neq('id', excludeId)
+    }
+
+    const { data, error } = await query.maybeSingle()
+    if (error) throw error
+    return Boolean(data)
+  }
+
+  app.get('/usuarios-app', async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .select(USUARIOS_APP_SELECT)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+
+      if (error) throw error
+
+      res.json({
+        ok: true,
+        usuarios: (data || []).map(sanitizeUsuarioApp),
+      })
+    } catch (err) {
+      console.error('Error listando usuarios_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al obtener usuarios',
+      })
+    }
+  })
+
+  app.post('/usuarios-app', async (req, res) => {
+    try {
+      const { nombre, usuario, email, rol, activo } = req.body || {}
+
+      if (!String(nombre || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El nombre es obligatorio',
+        })
+      }
+
+      if (!String(usuario || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El usuario es obligatorio',
+        })
+      }
+
+      const normalizedEmail = normalizeUsuarioAppEmail(email)
+      if (!isValidUsuarioAppEmail(normalizedEmail)) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El formato del email no es válido',
+        })
+      }
+
+      if (!isValidUsuariosAppRol(rol)) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Rol inválido',
+        })
+      }
+
+      const usuarioTrimmed = String(usuario).trim()
+      if (await isUsuarioAppLoginTaken(usuarioTrimmed)) {
+        return res.status(409).json({
+          ok: false,
+          error: 'Ya existe un usuario con ese nombre de usuario',
+        })
+      }
+
+      const now = new Date().toISOString()
+      const passwordTemporal = generateTemporaryPassword()
+      const passwordHash = await hashPassword(passwordTemporal)
+      const payload = {
+        nombre: String(nombre).trim(),
+        usuario: usuarioTrimmed,
+        email: normalizedEmail,
+        password_hash: passwordHash,
+        rol: String(rol).trim().toLowerCase(),
+        activo: activo !== false,
+        requiere_cambio_password: true,
+        created_at: now,
+        updated_at: now,
+      }
+
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .insert([payload])
+        .select(USUARIOS_APP_SELECT)
+        .single()
+
+      if (error) {
+        if (isDuplicateKeyError(error)) {
+          return res.status(409).json({
+            ok: false,
+            error: 'Ya existe un usuario con ese nombre de usuario o email',
+          })
+        }
+        throw error
+      }
+
+      res.status(201).json({
+        ok: true,
+        usuario: sanitizeUsuarioApp(data),
+        password_temporal: passwordTemporal,
+      })
+    } catch (err) {
+      console.error('Error creando usuario_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al crear usuario',
+      })
+    }
+  })
+
+  app.post('/usuarios-app/cambiar-password', async (req, res) => {
+    try {
+      const { userId, passwordActual, passwordNueva } = req.body || {}
+
+      if (!String(userId || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El usuario es obligatorio',
+        })
+      }
+
+      if (!String(passwordActual || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'La contraseña actual es obligatoria',
+        })
+      }
+
+      if (!String(passwordNueva || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'La nueva contraseña es obligatoria',
+        })
+      }
+
+      if (String(passwordNueva).length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({
+          ok: false,
+          error: `La nueva contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`,
+        })
+      }
+
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .select('id, nombre, usuario, email, rol, activo, password_hash, requiere_cambio_password')
+        .eq('id', userId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        return res.status(404).json({
+          ok: false,
+          error: 'Usuario no encontrado',
+        })
+      }
+
+      if (!data.activo) {
+        return res.status(403).json({
+          ok: false,
+          error: 'Usuario inactivo',
+        })
+      }
+
+      const passwordOk = await verifyUsuarioPassword(
+        data.id,
+        passwordActual,
+        data.password_hash
+      )
+
+      if (!passwordOk) {
+        return res.status(401).json({
+          ok: false,
+          error: 'La contraseña actual es incorrecta',
+        })
+      }
+
+      const now = new Date().toISOString()
+      const passwordHash = await hashPassword(passwordNueva)
+      const { data: updated, error: updateError } = await supabase
+        .from('usuarios_app')
+        .update({
+          password_hash: passwordHash,
+          requiere_cambio_password: false,
+          updated_at: now,
+        })
+        .eq('id', userId)
+        .is('deleted_at', null)
+        .select(USUARIOS_APP_SELECT)
+        .single()
+
+      if (updateError) throw updateError
+
+      res.json({
+        ok: true,
+        usuario: {
+          id: updated.id,
+          nombre: updated.nombre,
+          usuario: updated.usuario,
+          email: updated.email,
+          rol: updated.rol,
+          requiere_cambio_password: false,
+        },
+      })
+    } catch (err) {
+      console.error('Error cambiando password usuario_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al cambiar la contraseña',
+      })
+    }
+  })
+
+  app.post('/usuarios-app/restablecer-password', async (req, res) => {
+    try {
+      const { id } = req.body || {}
+
+      if (!String(id || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El id es obligatorio',
+        })
+      }
+
+      const passwordTemporal = generateTemporaryPassword()
+      const passwordHash = await hashPassword(passwordTemporal)
+      const now = new Date().toISOString()
+
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .update({
+          password_hash: passwordHash,
+          requiere_cambio_password: true,
+          updated_at: now,
+        })
+        .eq('id', id)
+        .is('deleted_at', null)
+        .select(USUARIOS_APP_SELECT)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return res.status(404).json({
+            ok: false,
+            error: 'Usuario no encontrado',
+          })
+        }
+        throw error
+      }
+
+      res.json({
+        ok: true,
+        password_temporal: passwordTemporal,
+        usuario: sanitizeUsuarioApp(data),
+      })
+    } catch (err) {
+      console.error('Error restableciendo password usuario_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al restablecer la contraseña',
+      })
+    }
+  })
+
+  app.post('/usuarios-app/eliminar', async (req, res) => {
+    try {
+      const { ids } = req.body || {}
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Debe indicar al menos un id de usuario',
+        })
+      }
+
+      const idList = [...new Set(ids.map((item) => String(item || '').trim()).filter(Boolean))]
+
+      if (!idList.length) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Debe indicar al menos un id de usuario',
+        })
+      }
+
+      const now = new Date().toISOString()
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .update({ deleted_at: now, updated_at: now })
+        .in('id', idList)
+        .neq('usuario', 'admin')
+        .is('deleted_at', null)
+        .select('id')
+
+      if (error) throw error
+
+      res.json({
+        ok: true,
+        eliminados: (data || []).length,
+      })
+    } catch (err) {
+      console.error('Error eliminando usuarios_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al eliminar usuarios',
+      })
+    }
+  })
+
+  app.put('/usuarios-app/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+      const { nombre, usuario, email, password, rol, activo } = req.body || {}
+
+      if (!String(nombre || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El nombre es obligatorio',
+        })
+      }
+
+      if (!String(usuario || '').trim()) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El usuario es obligatorio',
+        })
+      }
+
+      const normalizedEmail = normalizeUsuarioAppEmail(email)
+      if (!isValidUsuarioAppEmail(normalizedEmail)) {
+        return res.status(400).json({
+          ok: false,
+          error: 'El formato del email no es válido',
+        })
+      }
+
+      if (!isValidUsuariosAppRol(rol)) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Rol inválido',
+        })
+      }
+
+      const usuarioTrimmed = String(usuario).trim()
+      if (await isUsuarioAppLoginTaken(usuarioTrimmed, id)) {
+        return res.status(409).json({
+          ok: false,
+          error: 'Ya existe un usuario con ese nombre de usuario',
+        })
+      }
+
+      const updatePayload = {
+        nombre: String(nombre).trim(),
+        usuario: usuarioTrimmed,
+        email: normalizedEmail,
+        rol: String(rol).trim().toLowerCase(),
+        activo: activo !== false,
+        updated_at: new Date().toISOString(),
+      }
+
+      if (password != null && String(password).trim() !== '') {
+        updatePayload.password_hash = await hashPassword(password)
+        updatePayload.requiere_cambio_password = false
+      }
+
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .update(updatePayload)
+        .eq('id', id)
+        .is('deleted_at', null)
+        .select(USUARIOS_APP_SELECT)
+        .single()
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          return res.status(404).json({
+            ok: false,
+            error: 'Usuario no encontrado',
+          })
+        }
+        if (isDuplicateKeyError(error)) {
+          return res.status(409).json({
+            ok: false,
+            error: 'Ya existe un usuario con ese nombre de usuario o email',
+          })
+        }
+        throw error
+      }
+
+      res.json({
+        ok: true,
+        usuario: sanitizeUsuarioApp(data),
+      })
+    } catch (err) {
+      console.error('Error actualizando usuario_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al actualizar usuario',
+      })
+    }
+  })
+
+  app.delete('/usuarios-app/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+
+      const { data, error } = await supabase
+        .from('usuarios_app')
+        .update({
+          activo: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .is('deleted_at', null)
+        .select('id')
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        return res.status(404).json({
+          ok: false,
+          error: 'Usuario no encontrado',
+        })
+      }
+
+      res.json({ ok: true })
+    } catch (err) {
+      console.error('Error desactivando usuario_app:', err)
+      res.status(500).json({
+        ok: false,
+        error: 'Error al desactivar usuario',
+      })
+    }
+  })
 
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
