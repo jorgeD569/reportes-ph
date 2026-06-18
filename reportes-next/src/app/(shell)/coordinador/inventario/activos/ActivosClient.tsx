@@ -12,7 +12,21 @@ import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get } from '@/lib/api'
-import { COORD_INPUT_LG } from '@/lib/coordinador/theme'
+import {
+  COORD_BTN_SECONDARY,
+  COORD_CODE,
+  COORD_DROPDOWN_ITEM,
+  COORD_DROPDOWN_ITEM_ACTIVE,
+  COORD_DROPDOWN_PANEL,
+  COORD_FILTER_TRIGGER,
+  COORD_FILTER_TRIGGER_ACTIVE,
+  COORD_INPUT_LG,
+  COORD_LABEL,
+  COORD_SECTION_MUTED,
+  COORD_SECTION_TITLE,
+  COORD_TEXT,
+  COORD_TEXT_MUTED,
+} from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
 import { formatDateDDMMYYYY, formatDateTimeEsAr } from '@/lib/date'
 import type { Activo } from '@/lib/types/inventario'
@@ -99,6 +113,8 @@ function tipoMovimientoBadgeVariant(
   const map: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'danger' | 'accent'> = {
     creacion: 'success',
     edicion: 'info',
+    'actualizacion de certificacion': 'success',
+    actualizacion_certificacion: 'success',
     traslado: 'accent',
     baja: 'danger',
     reparacion: 'warning',
@@ -110,6 +126,11 @@ function tipoMovimientoBadgeVariant(
 function tipoMovimientoLabel(tipo: string | null | undefined): string {
   const raw = String(tipo ?? '').trim()
   if (!raw) return 'Movimiento'
+  const normalized = raw
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+  if (normalized === 'actualizacion de certificacion') return 'Actualización de certificación'
   return raw.replace(/_/g, ' ')
 }
 
@@ -319,8 +340,8 @@ export function ActivosClient() {
       <Card>
         <CardHeader>
           <div>
-            <div className="text-lg font-semibold">Listado de activos</div>
-            <div className="mt-1 text-sm text-muted">
+            <div className={COORD_SECTION_TITLE}>Listado de activos</div>
+            <div className={COORD_SECTION_MUTED}>
               Datos en vivo desde <code className="font-mono">GET /activos</code>.
             </div>
           </div>
@@ -348,7 +369,7 @@ export function ActivosClient() {
                   <button
                     type="button"
                     onClick={clearColumnFilters}
-                    className="h-9 rounded-xl border border-border bg-surface px-3 text-sm font-semibold hover:bg-surface-2"
+                    className={COORD_BTN_SECONDARY}
                   >
                     Limpiar filtros
                   </button>
@@ -358,14 +379,14 @@ export function ActivosClient() {
           </div>
 
           {activeColumnFilters.length > 0 ? (
-            <div className="mb-4 flex flex-wrap gap-2 text-sm text-muted">
-              <span className="font-semibold text-app">Activos:</span>
+            <div className={cn('mb-4 flex flex-wrap gap-2 text-sm', COORD_TEXT_MUTED)}>
+              <span className={cn('font-semibold', COORD_TEXT)}>Activos:</span>
               {activeColumnFilters.map(({ key, value }) => {
                 const label = FILTER_COLUMNS.find((c) => c.key === key)?.label ?? key
                 return (
                   <span
                     key={key}
-                    className="rounded-full border border-border bg-surface-2 px-3 py-1 text-xs font-semibold text-app"
+                    className="rounded-full border border-slate-700 bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
                   >
                     {label}: {value}
                   </span>
@@ -399,8 +420,8 @@ export function ActivosClient() {
                           setOpenFilter((cur) => (cur === key ? null : key))
                         }
                         className={cn(
-                          'flex w-full items-center gap-1 text-left text-xs font-semibold uppercase tracking-wide transition hover:text-app',
-                          active ? 'text-app' : 'text-muted'
+                          COORD_FILTER_TRIGGER,
+                          active && COORD_FILTER_TRIGGER_ACTIVE
                         )}
                       >
                         <span className="min-w-0 flex-1 leading-snug">{label}</span>
@@ -417,12 +438,12 @@ export function ActivosClient() {
                       {openFilter === key ? (
                         <div
                           ref={dropdownRef}
-                          className="absolute left-0 top-full z-30 mt-1 max-h-64 min-w-[220px] overflow-y-auto rounded-xl border border-border bg-surface py-1 shadow-[var(--shadow-app)]"
+                          className={COORD_DROPDOWN_PANEL}
                           role="listbox"
                         >
                           <button
                             type="button"
-                            className="block w-full px-3 py-2 text-left text-sm font-semibold hover:bg-surface-2"
+                            className={cn(COORD_DROPDOWN_ITEM, 'font-semibold')}
                             onClick={() => selectColumnOption(key, 'Todos')}
                           >
                             Todos
@@ -433,8 +454,8 @@ export function ActivosClient() {
                               key={opt}
                               type="button"
                               className={cn(
-                                'block w-full px-3 py-2 text-left text-sm hover:bg-surface-2',
-                                columnFilters[key] === opt && 'bg-surface-2 font-semibold'
+                                COORD_DROPDOWN_ITEM,
+                                columnFilters[key] === opt && COORD_DROPDOWN_ITEM_ACTIVE
                               )}
                               onClick={() => selectColumnOption(key, opt)}
                             >
@@ -507,7 +528,7 @@ export function ActivosClient() {
                           <button
                             type="button"
                             onClick={() => setHistorialActivo(a)}
-                            className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold hover:bg-surface-2"
+                            className={COORD_BTN_SECONDARY}
                           >
                             Historial
                           </button>
@@ -530,7 +551,7 @@ export function ActivosClient() {
         {historialActivo ? (
           <div className="max-h-[calc(90vh-8rem)] space-y-6 overflow-y-auto pr-1">
             <div>
-              <div className="mb-3 text-sm font-semibold text-app">
+              <div className={cn('mb-3 text-sm font-semibold', COORD_TEXT)}>
                 Información principal
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -547,8 +568,8 @@ export function ActivosClient() {
 
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-app">Historial de movimientos</span>
-                <code className="rounded-lg bg-surface-2 px-2 py-1 text-xs text-muted">
+                <span className={cn('text-sm font-semibold', COORD_TEXT)}>Historial de movimientos</span>
+                <code className={COORD_CODE}>
                   GET /activos/{historialActivo.id}/movimientos
                 </code>
               </div>
@@ -581,13 +602,13 @@ export function ActivosClient() {
                     return (
                       <li key={key} className="relative">
                         <span className="absolute -left-[17px] top-2 h-2 w-2 rounded-full bg-[var(--color-brand)] ring-4 ring-surface sm:-left-[21px] sm:h-2.5 sm:w-2.5" />
-                        <div className="rounded-2xl border border-border bg-surface-2 p-3 sm:p-4">
+                        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-3 sm:p-4">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                              <div className={COORD_LABEL}>
                                 Fecha
                               </div>
-                              <div className="mt-0.5 text-sm font-semibold text-app">{fechaFmt}</div>
+                              <div className={cn('mt-0.5 text-sm font-semibold', COORD_TEXT)}>{fechaFmt}</div>
                             </div>
                             <StatusBadge variant={tipoMovimientoBadgeVariant(m.tipo_movimiento)}>
                               {tipoMovimientoLabel(m.tipo_movimiento)}
@@ -596,23 +617,23 @@ export function ActivosClient() {
 
                           {m.descripcion ? (
                             <div className="mt-3 text-sm">
-                              <span className="text-muted">Descripción:</span>{' '}
-                              <span className="font-medium">{m.descripcion}</span>
+                              <span className={COORD_TEXT_MUTED}>Descripción:</span>{' '}
+                              <span className="font-medium text-white">{m.descripcion}</span>
                             </div>
                           ) : null}
 
                           {m.usuario ? (
                             <div className="mt-2 text-sm">
-                              <span className="text-muted">Usuario:</span>{' '}
-                              <span className="font-medium">{m.usuario}</span>
+                              <span className={COORD_TEXT_MUTED}>Usuario:</span>{' '}
+                              <span className="font-medium text-white">{m.usuario}</span>
                             </div>
                           ) : null}
 
                           {(showEstado || showUbicacion || showAsignacion) && (
-                            <div className="mt-3 space-y-2 rounded-xl border border-border bg-surface p-3 text-sm">
+                            <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-white">
                               {showEstado ? (
                                 <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                                  <div className={COORD_LABEL}>
                                     Estado
                                   </div>
                                   <div className="mt-0.5 font-medium break-words">
@@ -623,7 +644,7 @@ export function ActivosClient() {
                               ) : null}
                               {showUbicacion ? (
                                 <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                                  <div className={COORD_LABEL}>
                                     Ubicación
                                   </div>
                                   <div className="mt-0.5 font-medium break-words">
@@ -634,7 +655,7 @@ export function ActivosClient() {
                               ) : null}
                               {showAsignacion ? (
                                 <div>
-                                  <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                                  <div className={COORD_LABEL}>
                                     Asignación
                                   </div>
                                   <div className="mt-0.5 font-medium break-words">
@@ -648,8 +669,8 @@ export function ActivosClient() {
 
                           {obs ? (
                             <div className="mt-3 text-sm">
-                              <span className="text-muted">Observaciones:</span>
-                              <div className="mt-1 whitespace-pre-wrap font-medium">{m.observaciones}</div>
+                              <span className={COORD_TEXT_MUTED}>Observaciones:</span>
+                              <div className="mt-1 whitespace-pre-wrap font-medium text-white">{m.observaciones}</div>
                             </div>
                           ) : null}
                         </div>

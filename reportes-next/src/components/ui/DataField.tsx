@@ -40,7 +40,7 @@ export function DataField({
         )}
       >
         {value ?? (
-          <span className={cn('font-medium', isCoordinador ? 'text-sky-200/50' : 'text-muted')}>
+          <span className={cn('font-medium', isCoordinador ? 'text-slate-400' : 'text-muted')}>
             Sin dato
           </span>
         )}

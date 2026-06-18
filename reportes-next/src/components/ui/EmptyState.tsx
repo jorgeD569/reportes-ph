@@ -28,7 +28,7 @@ export function EmptyState({
     >
       <div className={cn('text-sm font-semibold', isCoordinador && 'text-white')}>{title}</div>
       {description ? (
-        <div className={cn('mt-1 text-sm', isCoordinador ? 'text-sky-200/70' : 'text-muted')}>
+        <div className={cn('mt-1 text-sm', isCoordinador ? 'text-slate-300' : 'text-muted')}>
           {description}
         </div>
       ) : null}

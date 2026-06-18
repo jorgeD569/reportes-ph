@@ -1474,11 +1474,47 @@ app.post('/activos', async (req, res) => {
 // =========================
 // ACTIVOS - EDITAR
 // =========================
+const ACTIVO_UPDATE_FIELDS = [
+  'descripcion',
+  'categoria',
+  'numero_serie',
+  'marca',
+  'estado',
+  'ubicacion',
+  'asignado_a',
+  'vencimiento',
+  'certificado_url',
+  'observaciones',
+  'proveedor',
+  'dias_aviso',
+  'activo',
+]
+
+function pickActivoUpdateFields(body) {
+  const payload = {}
+  for (const key of ACTIVO_UPDATE_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(body, key)) {
+      payload[key] = body[key]
+    }
+  }
+  return payload
+}
+
 app.put('/activos/:id', async (req, res) => {
 
   try {
 
     const { id } = req.params
+
+    const {
+      usuario: usuarioMovimiento,
+      tipo_movimiento: tipoMovimientoCustom,
+      descripcion_movimiento: descripcionMovimientoCustom,
+      observaciones_movimiento: observacionesMovimientoCustom,
+      ...rawBody
+    } = req.body || {}
+
+    const updatePayload = pickActivoUpdateFields(rawBody)
 
     // ACTIVO ANTES DEL CAMBIO
     const { data: activoAnterior, error: errorAnterior } = await supabase
@@ -1493,7 +1529,7 @@ app.put('/activos/:id', async (req, res) => {
     const { data, error } = await supabase
       .from('activos')
       .update({
-        ...req.body,
+        ...updatePayload,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -1502,15 +1538,38 @@ app.put('/activos/:id', async (req, res) => {
 
     if (error) throw error
 
+    const vencimientoCambio =
+      String(activoAnterior.vencimiento ?? '') !== String(data.vencimiento ?? '')
+    const certificadoCambio =
+      String(activoAnterior.certificado_url ?? '') !== String(data.certificado_url ?? '')
+
+    const tipoMovimiento =
+      tipoMovimientoCustom ||
+      (vencimientoCambio || certificadoCambio
+        ? 'actualización de certificación'
+        : 'edicion')
+
+    const descripcionMovimiento =
+      descripcionMovimientoCustom ||
+      (tipoMovimiento === 'actualización de certificación'
+        ? 'Actualización de certificación'
+        : 'Activo editado')
+
+    const observacionesMovimiento =
+      observacionesMovimientoCustom ||
+      (tipoMovimiento === 'actualización de certificación'
+        ? 'Se actualizó vencimiento/certificado del activo'
+        : data.observaciones)
+
     // REGISTRAR MOVIMIENTO
     await registrarMovimiento({
       activo_id: data.id,
 
-      tipo_movimiento: 'edicion',
+      tipo_movimiento: tipoMovimiento,
 
-      descripcion: 'Activo editado',
+      descripcion: descripcionMovimiento,
 
-      usuario: 'Administrador',
+      usuario: usuarioMovimiento || 'Administrador',
 
       estado_anterior: activoAnterior.estado,
       estado_nuevo: data.estado,
@@ -1521,7 +1580,7 @@ app.put('/activos/:id', async (req, res) => {
       asignado_anterior: activoAnterior.asignado_a,
       asignado_nuevo: data.asignado_a,
 
-      observaciones: data.observaciones
+      observaciones: observacionesMovimiento
     })
 
     res.json({

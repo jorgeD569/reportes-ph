@@ -12,9 +12,19 @@ import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get } from '@/lib/api'
-import { COORD_INPUT_LG } from '@/lib/coordinador/theme'
+import {
+  COORD_BTN_SECONDARY,
+  COORD_CODE,
+  COORD_INPUT_LG,
+  COORD_LABEL,
+  COORD_SECTION_MUTED,
+  COORD_SECTION_TITLE,
+  COORD_TEXT,
+  COORD_TEXT_MUTED,
+} from '@/lib/coordinador/theme'
 import { formatDateTimeEsAr } from '@/lib/date'
 import type { Consumible } from '@/lib/types/inventario'
+import { cn } from '@/lib/cn'
 import { stockLabel, stockState } from '@/lib/stock'
 
 /** Respuesta de GET /consumibles/:id/movimientos */
@@ -200,40 +210,40 @@ export function ConsumiblesClient() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardBody className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <div className={COORD_LABEL}>
               Total consumibles
             </div>
-            <div className="mt-2 text-3xl font-semibold tracking-tight">
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">
               {loading ? '—' : summary.total}
             </div>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <div className={COORD_LABEL}>
               Stock bajo
             </div>
-            <div className="mt-2 text-3xl font-semibold tracking-tight">
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">
               {loading ? '—' : summary.bajo}
             </div>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <div className={COORD_LABEL}>
               Sin stock
             </div>
-            <div className="mt-2 text-3xl font-semibold tracking-tight">
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">
               {loading ? '—' : summary.sin}
             </div>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="p-5">
-            <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <div className={COORD_LABEL}>
               Stock OK
             </div>
-            <div className="mt-2 text-3xl font-semibold tracking-tight">
+            <div className="mt-2 text-3xl font-semibold tracking-tight text-white">
               {loading ? '—' : summary.ok}
             </div>
           </CardBody>
@@ -243,8 +253,8 @@ export function ConsumiblesClient() {
       <Card>
         <CardHeader>
           <div>
-            <div className="text-lg font-semibold">Listado de consumibles</div>
-            <div className="mt-1 text-sm text-muted">
+            <div className={COORD_SECTION_TITLE}>Listado de consumibles</div>
+            <div className={COORD_SECTION_MUTED}>
               Datos en vivo desde <code className="font-mono">GET /consumibles</code>.
             </div>
           </div>
@@ -319,7 +329,7 @@ export function ConsumiblesClient() {
                           <button
                             type="button"
                             onClick={() => setHistorialConsumible(c)}
-                            className="rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-semibold hover:bg-surface-2"
+                            className={COORD_BTN_SECONDARY}
                           >
                             Historial
                           </button>
@@ -342,7 +352,7 @@ export function ConsumiblesClient() {
         {historialConsumible ? (
           <div className="max-h-[calc(90vh-8rem)] space-y-6 overflow-y-auto pr-1">
             <div>
-              <div className="mb-3 text-sm font-semibold text-app">Consumible</div>
+              <div className={cn('mb-3 text-sm font-semibold', COORD_TEXT)}>Consumible</div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <DataField label="Descripción" value={historialConsumible.descripcion || ''} />
                 <DataField label="Categoría" value={historialConsumible.categoria || ''} />
@@ -355,8 +365,8 @@ export function ConsumiblesClient() {
 
             <div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold text-app">Historial de movimientos</span>
-                <code className="rounded-lg bg-surface-2 px-2 py-1 text-xs text-muted">
+                <span className={cn('text-sm font-semibold', COORD_TEXT)}>Historial de movimientos</span>
+                <code className={COORD_CODE}>
                   GET /consumibles/{historialConsumible.id}/movimientos
                 </code>
               </div>
@@ -380,13 +390,13 @@ export function ConsumiblesClient() {
                     return (
                       <li key={key} className="relative">
                         <span className="absolute -left-[17px] top-2 h-2 w-2 rounded-full bg-[var(--color-brand)] ring-4 ring-surface sm:-left-[21px] sm:h-2.5 sm:w-2.5" />
-                        <div className="rounded-2xl border border-border bg-surface-2 p-3 sm:p-4">
+                        <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-3 sm:p-4">
                           <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="min-w-0">
-                              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                              <div className={COORD_LABEL}>
                                 Fecha
                               </div>
-                              <div className="mt-0.5 text-sm font-semibold text-app">{fechaFmt}</div>
+                              <div className={cn('mt-0.5 text-sm font-semibold', COORD_TEXT)}>{fechaFmt}</div>
                             </div>
                             <StatusBadge variant={tipoMovimientoBadgeVariant(m.tipo_movimiento)}>
                               {tipoMovimientoLabel(m.tipo_movimiento)}
@@ -395,14 +405,14 @@ export function ConsumiblesClient() {
 
                           {m.usuario ? (
                             <div className="mt-3 text-sm">
-                              <span className="text-muted">Usuario:</span>{' '}
-                              <span className="font-medium">{m.usuario}</span>
+                              <span className={COORD_TEXT_MUTED}>Usuario:</span>{' '}
+                              <span className="font-medium text-white">{m.usuario}</span>
                             </div>
                           ) : null}
 
-                          <div className="mt-3 space-y-2 rounded-xl border border-border bg-surface p-3 text-sm">
+                          <div className="mt-3 space-y-2 rounded-xl border border-slate-700 bg-slate-900 p-3 text-sm text-white">
                             <div>
-                              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                              <div className={COORD_LABEL}>
                                 Stock
                               </div>
                               <div className="mt-0.5 font-medium">
@@ -410,7 +420,7 @@ export function ConsumiblesClient() {
                               </div>
                             </div>
                             <div>
-                              <div className="text-xs font-semibold uppercase tracking-wide text-muted">
+                              <div className={COORD_LABEL}>
                                 Movimiento
                               </div>
                               <div className="mt-0.5 font-medium">
@@ -421,8 +431,8 @@ export function ConsumiblesClient() {
 
                           {obs ? (
                             <div className="mt-3 text-sm">
-                              <span className="text-muted">Observaciones:</span>
-                              <div className="mt-1 whitespace-pre-wrap font-medium">{m.observaciones}</div>
+                              <span className={COORD_TEXT_MUTED}>Observaciones:</span>
+                              <div className="mt-1 whitespace-pre-wrap font-medium text-white">{m.observaciones}</div>
                             </div>
                           ) : null}
                         </div>

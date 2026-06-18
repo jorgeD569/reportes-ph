@@ -15,9 +15,16 @@ import * as React from 'react'
 import Link from 'next/link'
 import { GestionInventarioGate } from '@/components/coordinador/inventario/GestionInventarioGate'
 import {
-  COORD_INPUT_LG,
-  COORD_TEXTAREA,
+  COORD_BTN_DISABLED,
   COORD_BTN_PRIMARY_LG,
+  COORD_BTN_SECONDARY,
+  COORD_INPUT_LG,
+  COORD_LABEL,
+  COORD_SECTION_MUTED,
+  COORD_SECTION_TITLE,
+  COORD_TEXT,
+  COORD_TEXT_MUTED,
+  COORD_TEXTAREA,
 } from '@/lib/coordinador/theme'
 import { routes } from '@/lib/constants/routes'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
@@ -25,50 +32,22 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { cn } from '@/lib/cn'
 
-type TabId = 'activo' | 'consumible' | 'mov-activo' | 'mov-consumible'
+type TabId = 'activo' | 'actualizar-activo' | 'consumible' | 'mov-activo' | 'mov-consumible'
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'activo', label: 'Nuevo activo' },
+  { id: 'actualizar-activo', label: 'Actualizar activo' },
   { id: 'consumible', label: 'Nuevo consumible' },
   { id: 'mov-activo', label: 'Movimiento de activo' },
   { id: 'mov-consumible', label: 'Movimiento de consumible' },
 ]
 
-/**
- * TODO: Reemplazar proveedoresMock por datos reales desde la tabla `proveedores` en Supabase.
- *
- * Futura tabla sugerida — proveedores:
- * - id (uuid / serial)
- * - nombre (text)
- * - cuit (text)
- * - telefono (text)
- * - email (text)
- * - contacto (text)
- * - rubro (text)
- * - observaciones (text)
- * - activo (boolean)
- * - created_at (timestamptz)
- */
-const proveedoresMock = [
-  'Seleccionar proveedor',
-  'YPF Ruta',
-  'Bulonera',
-  'Ferretería industrial',
-  'Proveedor externo',
-  'Otro',
-]
-
-const PROVEEDOR_DEFAULT = proveedoresMock[0]!
-
-const categoriasActivo = [
-  'Unidad PH',
-  'Sensor WIKA',
-  'Línea / accesorio',
-  'Herramienta',
-  'Seguridad',
-  'Piletas',
-  'Otro',
-]
+import { ActualizarActivoTab } from './ActualizarActivoTab'
+import {
+  categoriasActivo,
+  PROVEEDOR_DEFAULT,
+  proveedoresMock,
+} from './inventarioGestionConstants'
 
 type PreviewPayload =
   | { tab: 'activo'; values: Record<string, string>; docTitle: string }
@@ -86,9 +65,9 @@ function FieldRow({
   className?: string
 }) {
   return (
-    <div className={cn('rounded-xl border border-border bg-surface-2 px-3 py-2', className)}>
-      <div className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</div>
-      <div className="mt-1 whitespace-pre-wrap text-sm font-semibold">{value || '—'}</div>
+    <div className={cn('rounded-xl border border-slate-700 bg-slate-900/60 px-3 py-2', className)}>
+      <div className={COORD_LABEL}>{label}</div>
+      <div className="mt-1 whitespace-pre-wrap text-sm font-semibold text-white">{value || '—'}</div>
     </div>
   )
 }
@@ -258,7 +237,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
           <>
             <Link
               href={routes.coordinador.inventario.gestion}
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+              className={COORD_BTN_SECONDARY}
             >
               Volver al panel
             </Link>
@@ -266,7 +245,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             <button
               type="button"
               onClick={logout}
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+              className={COORD_BTN_SECONDARY}
             >
               Cerrar sesión
             </button>
@@ -286,8 +265,8 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             className={cn(
               'rounded-t-xl px-4 py-2 text-sm font-semibold transition',
               tab === t.id
-                ? 'bg-surface shadow-[var(--shadow-app)] ring-1 ring-border'
-                : 'text-muted hover:bg-surface-2 hover:text-app'
+                ? 'bg-slate-900 text-white shadow-[var(--shadow-app)] ring-1 ring-slate-700'
+                : cn(COORD_TEXT_MUTED, 'hover:bg-slate-800 hover:text-white')
             )}
           >
             {t.label}
@@ -299,8 +278,8 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
         <Card>
           <CardHeader>
             <div>
-              <div className="text-lg font-semibold">Nuevo activo</div>
-              <div className="mt-1 text-sm text-muted">
+              <div className={COORD_SECTION_TITLE}>Nuevo activo</div>
+              <div className={COORD_SECTION_MUTED}>
                 Registro inicial del equipo en inventario (sin envío al servidor todavía).
               </div>
             </div>
@@ -309,13 +288,13 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             <div className="grid gap-4 md:grid-cols-2">
               
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Descripción
                 </label>
                 <input className={inputClass()} value={nuevoActivo.descripcion}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, descripcion: e.target.value }))} />
               </div><div>
-  <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+  <label className={COORD_LABEL}>
     Categoría
   </label>
 
@@ -339,7 +318,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
   </select>
 </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Proveedor
                 </label>
                 <select
@@ -357,49 +336,49 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Número de serie
                 </label>
                 <input className={inputClass()} value={nuevoActivo.numero_serie}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, numero_serie: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Marca
                 </label>
                 <input className={inputClass()} value={nuevoActivo.marca}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, marca: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Estado
                 </label>
                 <input className={inputClass()} value={nuevoActivo.estado}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, estado: e.target.value }))} placeholder="Ej. operativo / en reparación" />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Ubicación
                 </label>
                 <input className={inputClass()} value={nuevoActivo.ubicacion}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, ubicacion: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Asignado a
                 </label>
                 <input className={inputClass()} value={nuevoActivo.asignado_a}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, asignado_a: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Vencimiento
                 </label>
                 <input type="date" className={inputClass()} value={nuevoActivo.vencimiento}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, vencimiento: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Días de aviso
                 </label>
                 <input className={inputClass()} inputMode="numeric" value={nuevoActivo.dias_aviso}
@@ -408,7 +387,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
               </div>
               <div className="md:col-span-2">
                 {/* TODO: Subir este archivo a Supabase Storage y persistir la URL pública en certificado_url vía POST /activos (junto al resto del alta). */}
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Certificado / documentación
                 </label>
                 <input
@@ -416,20 +395,20 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   accept=".pdf,image/*"
                   className={cn(
                     inputClass(),
-                    'cursor-pointer file:mr-3 file:rounded-lg file:border-0 file:bg-surface-2 file:px-3 file:py-2 file:text-sm file:font-semibold'
+                    'cursor-pointer file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white'
                   )}
                   onChange={(e) => setCertificadoArchivo(e.target.files?.[0] ?? null)}
                 />
-                <p className="mt-2 text-sm text-muted">
+                <p className={COORD_SECTION_MUTED}>
                   {certificadoArchivo ? (
-                    <span className="font-semibold text-app">{certificadoArchivo.name}</span>
+                    <span className={cn('font-semibold', COORD_TEXT)}>{certificadoArchivo.name}</span>
                   ) : (
                     'Ningún archivo seleccionado.'
                   )}
                 </p>
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Observaciones
                 </label>
                 <textarea className={textareaClass()} value={nuevoActivo.observaciones}
@@ -448,18 +427,20 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
         </Card>
       ) : null}
 
+      {tab === 'actualizar-activo' ? <ActualizarActivoTab /> : null}
+
       {tab === 'consumible' ? (
         <Card>
           <CardHeader>
             <div>
-              <div className="text-lg font-semibold">Nuevo consumible</div>
-              <div className="mt-1 text-sm text-muted">Alta de material de stock inicial.</div>
+              <div className={COORD_SECTION_TITLE}>Nuevo consumible</div>
+              <div className={COORD_SECTION_MUTED}>Alta de material de stock inicial.</div>
             </div>
           </CardHeader>
           <CardBody className="pt-0">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Descripción
                 </label>
                 <input className={inputClass()} value={nuevoConsumible.descripcion}
@@ -468,7 +449,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Categoría
                 </label>
                 <input className={inputClass()} value={nuevoConsumible.categoria}
@@ -477,7 +458,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Proveedor
                 </label>
                 <select
@@ -495,7 +476,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Cantidad inicial
                 </label>
                 <input className={inputClass()} inputMode="decimal" value={nuevoConsumible.cantidad_inicial}
@@ -504,7 +485,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Stock mínimo
                 </label>
                 <input className={inputClass()} inputMode="decimal" value={nuevoConsumible.stock_minimo}
@@ -513,7 +494,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Ubicación
                 </label>
                 <input className={inputClass()} value={nuevoConsumible.ubicacion}
@@ -522,7 +503,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Observaciones
                 </label>
                 <textarea className={textareaClass()} value={nuevoConsumible.observaciones}
@@ -545,8 +526,8 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
         <Card>
           <CardHeader>
             <div>
-              <div className="text-lg font-semibold">Movimiento de activo</div>
-              <div className="mt-1 text-sm text-muted">
+              <div className={COORD_SECTION_TITLE}>Movimiento de activo</div>
+              <div className={COORD_SECTION_MUTED}>
                 Traslado, asignación u otro movimiento de equipo (sin persistencia aún).
               </div>
             </div>
@@ -554,14 +535,14 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
           <CardBody className="pt-0">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Fecha
                 </label>
                 <input type="datetime-local" className={inputClass()} value={movActivo.fecha}
                   onChange={(e) => setMovActivo((s) => ({ ...s, fecha: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Activo / equipo
                 </label>
                 <input
@@ -572,7 +553,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Número de serie
                 </label>
                 <input
@@ -586,7 +567,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Tipo de movimiento
                 </label>
                 <select
@@ -608,42 +589,42 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Origen
                 </label>
                 <input className={inputClass()} value={movActivo.origen}
                   onChange={(e) => setMovActivo((s) => ({ ...s, origen: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Destino
                 </label>
                 <input className={inputClass()} value={movActivo.destino}
                   onChange={(e) => setMovActivo((s) => ({ ...s, destino: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Entrega
                 </label>
                 <input className={inputClass()} value={movActivo.entrega}
                   onChange={(e) => setMovActivo((s) => ({ ...s, entrega: e.target.value }))} />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Recibe
                 </label>
                 <input className={inputClass()} value={movActivo.recibe}
                   onChange={(e) => setMovActivo((s) => ({ ...s, recibe: e.target.value }))} />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Motivo
                 </label>
                 <input className={inputClass()} value={movActivo.motivo}
                   onChange={(e) => setMovActivo((s) => ({ ...s, motivo: e.target.value }))} />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Observaciones
                 </label>
                 <textarea className={textareaClass()} value={movActivo.observaciones}
@@ -666,14 +647,14 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
         <Card>
           <CardHeader>
             <div>
-              <div className="text-lg font-semibold">Movimiento de consumible</div>
-              <div className="mt-1 text-sm text-muted">Registro operativo de stock (sin guardar).</div>
+              <div className={COORD_SECTION_TITLE}>Movimiento de consumible</div>
+              <div className={COORD_SECTION_MUTED}>Registro operativo de stock (sin guardar).</div>
             </div>
           </CardHeader>
           <CardBody className="pt-0">
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Fecha
                 </label>
                 <input type="datetime-local" className={inputClass()} value={movConsumible.fecha}
@@ -682,7 +663,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Consumible
                 </label>
                 <input className={inputClass()} value={movConsumible.consumible}
@@ -691,7 +672,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Tipo de movimiento
                 </label>
                 <select
@@ -712,7 +693,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Cantidad
                 </label>
                 <input className={inputClass()} inputMode="decimal" value={movConsumible.cantidad}
@@ -721,7 +702,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Origen
                 </label>
                 <input className={inputClass()} value={movConsumible.origen}
@@ -730,7 +711,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Destino / pozo / unidad / base
                 </label>
                 <input className={inputClass()} value={movConsumible.destino}
@@ -739,7 +720,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Entrega
                 </label>
                 <input className={inputClass()} value={movConsumible.entrega}
@@ -748,7 +729,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Recibe
                 </label>
                 <input className={inputClass()} value={movConsumible.recibe}
@@ -757,7 +738,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Motivo de uso
                 </label>
                 <input className={inputClass()} value={movConsumible.motivo_uso}
@@ -766,7 +747,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   } />
               </div>
               <div className="md:col-span-2">
-                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                <label className={COORD_LABEL}>
                   Observaciones
                 </label>
                 <textarea className={textareaClass()} value={movConsumible.observaciones}
@@ -818,8 +799,8 @@ function OperativePreviewCard({
     <Card className="border-2 border-dashed border-border">
       <CardHeader>
         <div>
-          <div className="text-lg font-semibold">{preview.docTitle}</div>
-          <div className="mt-1 text-sm text-muted">
+          <div className={COORD_SECTION_TITLE}>{preview.docTitle}</div>
+          <div className={COORD_SECTION_MUTED}>
             Vista previa interna · no persistida. Los botones de guardado/PDF se habilitarán cuando el backend
             confirme el registro.
           </div>
@@ -827,16 +808,16 @@ function OperativePreviewCard({
         <button
           type="button"
           onClick={onDismiss}
-          className="rounded-xl border border-border bg-surface px-3 py-2 text-sm font-semibold hover:bg-surface-2"
+          className={COORD_BTN_SECONDARY}
         >
           Ocultar
         </button>
       </CardHeader>
       <CardBody className="space-y-4 pt-0">
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-surface-2 px-4 py-3">
-          <div className="text-sm">
-            <span className="text-muted">Fecha del documento</span>
-            <div className="mt-1 font-semibold">{fechaDisplay}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-700 bg-slate-900/60 px-4 py-3">
+          <div className="text-sm text-white">
+            <span className={COORD_TEXT_MUTED}>Fecha del documento</span>
+            <div className="mt-1 font-semibold text-white">{fechaDisplay}</div>
           </div>
           <StatusBadge variant="warning">Pendiente de guardar</StatusBadge>
         </div>
@@ -882,7 +863,7 @@ function OperativePreviewCard({
             type="button"
             disabled
             title="Se conectará a POST cuando el backend confirme el contrato."
-            className="h-11 cursor-not-allowed rounded-xl bg-surface px-4 text-sm font-semibold opacity-50"
+            className={COORD_BTN_DISABLED}
           >
             Guardar registro
           </button>
@@ -890,7 +871,7 @@ function OperativePreviewCard({
             type="button"
             disabled
             title="Se usará POST /generar-pdf-movimiento (o endpoint equivalente) cuando exista en backend."
-            className="h-11 cursor-not-allowed rounded-xl border border-border bg-surface px-4 text-sm font-semibold opacity-50"
+            className={COORD_BTN_DISABLED}
           >
             Generar PDF
           </button>

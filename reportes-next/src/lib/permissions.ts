@@ -11,6 +11,12 @@ export type NavItemDef = {
 /** Rutas de administración de usuarios reservadas para admin (futuro). */
 const ADMIN_ONLY_COORDINADOR_PREFIXES = ['/coordinador/usuarios'] as const
 
+/** Rutas del panel de gestión administrativa (inventario, partes operativos en modo edición, etc.). */
+const GESTION_PATH_PREFIXES = [
+  '/coordinador/inventario/gestion',
+  '/coordinador/gestion/',
+] as const
+
 export const NAV_OPERADOR: NavItemDef[] = [
   {
     label: 'Parte PH',
@@ -95,6 +101,15 @@ function isAdminOnlyCoordinadorPath(path: string): boolean {
   )
 }
 
+export function isGestionPath(path: string): boolean {
+  return GESTION_PATH_PREFIXES.some((prefix) => matchesPathPrefix(path, prefix))
+}
+
+export function canAccessGestion(rol: string): boolean {
+  const role = normalizeRol(rol)
+  return role === 'admin' || role === 'coordinador'
+}
+
 function canAccessOperadorPaths(role: AppRol): boolean {
   return (
     role === 'operador' ||
@@ -119,6 +134,10 @@ export function canAccessPath(rol: string, pathname: string): boolean {
   if (!role) return false
 
   const path = pathname.split('?')[0] || '/'
+
+  if (isGestionPath(path) && !canAccessGestion(rol)) {
+    return false
+  }
 
   if (role === 'admin') return true
 

@@ -67,16 +67,25 @@ body {
 /* Panel Coordinador — tokens locales para clases semánticas (border-border, bg-surface, etc.) */
 .coordinador-theme {
   --app-fg: #ffffff;
-  --surface: rgba(15, 31, 45, 0.96);
-  --surface-2: rgba(255, 255, 255, 0.05);
-  --border: rgba(255, 255, 255, 0.1);
-  --muted: rgba(186, 230, 253, 0.7);
+  --surface: rgb(15 23 42);
+  --surface-2: rgb(30 41 59);
+  --border: rgb(51 65 85);
+  --muted: rgb(203 213 225);
   --brand: #1d8ecf;
   --brand-2: #0ea5e9;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-  color: rgba(224, 242, 254, 0.95);
+  color: #ffffff;
 }
 
 .coordinador-theme code {
-  color: rgba(186, 230, 253, 0.85);
+  color: rgb(203 213 225);
+}
+
+.coordinador-theme select {
+  color-scheme: dark;
+}
+
+.coordinador-theme select option {
+  background-color: rgb(15 23 42);
+  color: #ffffff;
 }
