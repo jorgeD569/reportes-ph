@@ -28,7 +28,7 @@ import {
   COORD_TEXT_MUTED,
 } from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
-import { formatDateDDMMYYYY, formatDateTimeEsAr } from '@/lib/date'
+import { formatFechaAR, formatInventarioFechaDisplay } from '@/lib/date'
 import type { Activo } from '@/lib/types/inventario'
 import { vencimientoLabel } from '@/lib/status'
 import { vencimientoState } from '@/lib/vencimientos'
@@ -54,8 +54,8 @@ function normalizeEmpty(v: unknown): string {
 
 function columnDisplayValue(row: Activo, key: FilterColumnKey): string {
   if (key === 'vencimiento') {
-    const f = formatDateDDMMYYYY(row.vencimiento)
-    return normalizeEmpty(f)
+    const f = formatFechaAR(row.vencimiento)
+    return normalizeEmpty(f === '-' ? '' : f)
   }
   return normalizeEmpty(row[key])
 }
@@ -278,7 +278,7 @@ export function ActivosClient() {
           a.ubicacion,
           a.asignado_a,
           a.estado,
-          formatDateDDMMYYYY(a.vencimiento),
+          formatFechaAR(a.vencimiento),
         ]
           .map((x) => String(x || '').toLowerCase())
           .join(' ')
@@ -587,7 +587,8 @@ export function ActivosClient() {
                 <ul className="relative space-y-4 border-l-2 border-border pl-4 sm:pl-5">
                   {movimientosOrdenados.map((m, idx) => {
                     const key = m.id ?? `${idx}-${m.fecha}`
-                    const fechaFmt = formatDateTimeEsAr(m.fecha) || displayMovValue(m.fecha)
+                    const fechaFmt =
+                      formatInventarioFechaDisplay(m.fecha) || displayMovValue(m.fecha)
                     const showEstado = hasMovimientoChange(m.estado_anterior, m.estado_nuevo)
                     const showUbicacion = hasMovimientoChange(
                       m.ubicacion_anterior,

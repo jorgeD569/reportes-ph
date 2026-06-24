@@ -159,7 +159,7 @@ export default function ParteOperativoPage() {
                   placeholder="Nombre del pozo"
                 />
               </div>             
-
+8
               <div>
                 <label className={labelClass} htmlFor="operadora">
                   Operadora

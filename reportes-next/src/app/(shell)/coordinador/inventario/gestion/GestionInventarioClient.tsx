@@ -27,6 +27,7 @@ import {
   COORD_TEXTAREA,
 } from '@/lib/coordinador/theme'
 import { routes } from '@/lib/constants/routes'
+import { formatInventarioFechaDisplay } from '@/lib/date'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
@@ -778,10 +779,11 @@ function OperativePreviewCard({
   preview: PreviewPayload
   onDismiss: () => void
 }) {
-  const fechaDisplay =
+  const rawFecha =
     (preview.values.Fecha && preview.values.Fecha.trim()) ||
     (preview.values.Vencimiento && preview.values.Vencimiento.trim()) ||
-    '—'
+    ''
+  const fechaDisplay = rawFecha ? formatInventarioFechaDisplay(rawFecha) : '—'
 
   /** Evita duplicar filas ya mostradas en el pie del comprobante. */
   const footerKeys = new Set(['Entrega', 'Recibe', 'Motivo', 'Motivo de uso', 'Observaciones'])

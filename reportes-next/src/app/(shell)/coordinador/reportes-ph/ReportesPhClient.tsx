@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { InlineMessage } from '@/components/ui/InlineMessage'
@@ -10,49 +11,64 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { ModernTable, Td, Th, Tr } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { useToast } from '@/components/ui/Toast'
 import { routes } from '@/lib/constants/routes'
 import {
+  COORD_BTN_DANGER,
   COORD_BTN_LINK,
   COORD_BTN_PRIMARY,
   COORD_INPUT_LG,
   COORD_SECTION_MUTED,
   COORD_SECTION_TITLE,
 } from '@/lib/coordinador/theme'
-import { get } from '@/lib/api'
+import { del, get } from '@/lib/api'
 import type { GetReportesPhResponse, ReportePhListItem } from '@/lib/types/reportes'
 import { formatDateDDMMYYYY } from '@/lib/date'
 import { reportePhState, reportePhStateLabel } from '@/lib/status'
 
+type DeleteReportePhResponse = {
+  ok: boolean
+  message?: string
+  error?: string
+}
+
 export function ReportesPhClient() {
   const params = useSearchParams()
   const estado = params.get('estado') // pendiente | cerrado | null
+  const { push: pushToast } = useToast()
 
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [items, setItems] = React.useState<ReportePhListItem[]>([])
   const [query, setQuery] = React.useState('')
+  const [deleteConfirm, setDeleteConfirm] = React.useState<{
+    open: boolean
+    reporte: ReportePhListItem | null
+  }>({ open: false, reporte: null })
+
+  const load = React.useCallback(async () => {
+    const data = await get<GetReportesPhResponse>('/reportes-ph')
+    setItems(data.reportes || [])
+  }, [])
 
   React.useEffect(() => {
     let cancelled = false
-    async function load() {
+    async function run() {
       try {
         setLoading(true)
         setError(null)
-        const data = await get<GetReportesPhResponse>('/reportes-ph')
-        if (cancelled) return
-        setItems(data.reportes || [])
+        await load()
       } catch (e) {
-        if (cancelled) return
-        setError(e instanceof Error ? e.message : String(e))
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e))
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
-    load()
+    void run()
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [load])
 
   const filtered = React.useMemo(() => {
     let list = [...items]
@@ -75,6 +91,37 @@ export function ReportesPhClient() {
 
     return list
   }, [items, estado, query])
+
+  function openDeleteConfirm(reporte: ReportePhListItem) {
+    setDeleteConfirm({ open: true, reporte })
+  }
+
+  function closeDeleteConfirm() {
+    setDeleteConfirm({ open: false, reporte: null })
+  }
+
+  async function executeDelete() {
+    const reporte = deleteConfirm.reporte
+    if (!reporte) return
+
+    try {
+      await del<DeleteReportePhResponse>(
+        `/reportes-ph/${encodeURIComponent(reporte.id)}`
+      )
+      closeDeleteConfirm()
+      await load()
+      pushToast({ kind: 'success', title: 'Reporte PH eliminado correctamente' })
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        title: e instanceof Error ? e.message : 'No se pudo eliminar el reporte PH',
+      })
+      throw e
+    }
+  }
+
+  const deleteDialogDescription =
+    'Se eliminará el reporte PH seleccionado. Esta acción no se puede deshacer.'
 
   return (
     <div className="space-y-6">
@@ -177,12 +224,21 @@ export function ReportesPhClient() {
                           </StatusBadge>
                         </Td>
                         <Td className="text-right">
-                          <Link
-                            href={routes.coordinador.reportePhDetalle(r.id)}
-                            className={COORD_BTN_PRIMARY}
-                          >
-                            Ver
-                          </Link>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Link
+                              href={routes.coordinador.reportePhDetalle(r.id)}
+                              className={COORD_BTN_PRIMARY}
+                            >
+                              Ver
+                            </Link>
+                            <button
+                              type="button"
+                              className={COORD_BTN_DANGER}
+                              onClick={() => openDeleteConfirm(r)}
+                            >
+                              Eliminar
+                            </button>
+                          </div>
                         </Td>
                       </Tr>
                     )
@@ -192,7 +248,17 @@ export function ReportesPhClient() {
           </ModernTable>
         </CardBody>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Eliminar reporte PH"
+        description={deleteDialogDescription}
+        confirmLabel="Eliminar definitivamente"
+        cancelLabel="Cancelar"
+        destructive
+        onCancel={closeDeleteConfirm}
+        onConfirm={executeDelete}
+      />
     </div>
   )
 }
-

@@ -644,6 +644,66 @@ async function registrarMovimiento({
   })
 
   /**
+   * DELETE /reportes-ph/:id
+   * Elimina un reporte PH y sus vínculos en partes_operativos_ph.
+   */
+  async function deleteReportePhCascade(reporteId) {
+    const { data: parte, error: errorParte } = await supabase
+      .from('partes')
+      .select('id, reporte_numero')
+      .eq('id', reporteId)
+      .maybeSingle()
+
+    if (errorParte) throw errorParte
+    if (!parte) {
+      return { ok: false, status: 404, error: 'Reporte PH no encontrado' }
+    }
+
+    const { error: errorLinks } = await supabase
+      .from('partes_operativos_ph')
+      .delete()
+      .eq('reporte_ph_id', reporteId)
+
+    if (errorLinks) throw errorLinks
+
+    const { error: errorDelete } = await supabase
+      .from('partes')
+      .delete()
+      .eq('id', reporteId)
+
+    if (errorDelete) throw errorDelete
+
+    return { ok: true, parte }
+  }
+
+  app.delete('/reportes-ph/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+      const result = await deleteReportePhCascade(id)
+
+      if (!result.ok) {
+        return res.status(result.status || 400).json({
+          ok: false,
+          error: result.error,
+        })
+      }
+
+      res.status(200).json({
+        ok: true,
+        message: 'Reporte PH eliminado correctamente',
+        id: result.parte.id,
+        reporte_numero: result.parte.reporte_numero ?? null,
+      })
+    } catch (error) {
+      console.error('Error eliminando reporte PH:', error)
+      res.status(500).json({
+        ok: false,
+        error: error.message || 'Error al eliminar reporte PH',
+      })
+    }
+  })
+
+  /**
    * POST /generar-reporte
    */
   app.post('/generar-reporte', async (req, res) => {
@@ -2966,6 +3026,81 @@ app.post('/partes-operativos/:id/cerrar', async (req, res) => {
     if (page) await page.close().catch(() => {})
     if (context) await context.close().catch(() => {})
 
+  }
+})
+
+/**
+ * Elimina un parte operativo y sus relaciones (orden FK: PH → servicios → historial → parte).
+ * Supabase JS no expone transacciones multi-tabla; si un paso falla, se aborta antes del DELETE principal.
+ */
+async function deleteParteOperativoCascade(parteId) {
+  const { data: parte, error: errorParte } = await supabase
+    .from('partes_operativos')
+    .select('id, numero_parte')
+    .eq('id', parteId)
+    .maybeSingle()
+
+  if (errorParte) throw errorParte
+  if (!parte) {
+    return { ok: false, status: 404, error: 'Parte operativo no encontrado' }
+  }
+
+  const { error: errorPh } = await supabase
+    .from('partes_operativos_ph')
+    .delete()
+    .eq('parte_operativo_id', parteId)
+
+  if (errorPh) throw errorPh
+
+  const { error: errorServicios } = await supabase
+    .from('partes_operativos_servicios')
+    .delete()
+    .eq('parte_id', parteId)
+
+  if (errorServicios) throw errorServicios
+
+  const { error: errorHistorial } = await supabase
+    .from('historial_partes_operativos')
+    .delete()
+    .eq('parte_id', parteId)
+
+  if (errorHistorial) throw errorHistorial
+
+  const { error: errorDelete } = await supabase
+    .from('partes_operativos')
+    .delete()
+    .eq('id', parteId)
+
+  if (errorDelete) throw errorDelete
+
+  return { ok: true, parte }
+}
+
+app.delete('/partes-operativos/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    console.log('DELETE parte operativo', id)
+    const result = await deleteParteOperativoCascade(id)
+
+    if (!result.ok) {
+      return res.status(result.status || 400).json({
+        ok: false,
+        error: result.error,
+      })
+    }
+
+    res.status(200).json({
+      ok: true,
+      message: 'Parte operativo eliminado correctamente',
+      id: result.parte.id,
+      numero_parte: result.parte.numero_parte ?? null,
+    })
+  } catch (error) {
+    console.error('Error eliminando parte operativo:', error)
+    res.status(500).json({
+      ok: false,
+      error: error.message || 'Error al eliminar parte operativo',
+    })
   }
 })
 

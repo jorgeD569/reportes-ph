@@ -17,6 +17,7 @@ import {
   COORD_TEXTAREA,
 } from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
+import { formatFechaAR, toInputDate } from '@/lib/date'
 import { vencimientoState } from '@/lib/vencimientos'
 import type { Activo } from '@/lib/types/inventario'
 import {
@@ -67,15 +68,6 @@ function textareaClass() {
   return `mt-2 ${COORD_TEXTAREA}`
 }
 
-function toDateInputValue(v: string | null | undefined): string {
-  if (!v) return ''
-  const trimmed = String(v).trim()
-  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10)
-  const d = new Date(trimmed)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toISOString().slice(0, 10)
-}
-
 function normalizeEstado(estado: string | null | undefined): string {
   const raw = String(estado ?? '').trim()
   if (!raw) return 'operativo'
@@ -104,7 +96,7 @@ function activoToEditForm(activo: Activo): EditActivoForm {
     estado: normalizeEstado(activo.estado),
     ubicacion: activo.ubicacion ?? '',
     asignado_a: activo.asignado_a ?? '',
-    vencimiento: toDateInputValue(activo.vencimiento),
+    vencimiento: toInputDate(activo.vencimiento),
     certificado_url: activo.certificado_url ?? '',
     observaciones: activo.observaciones ?? '',
   }
@@ -424,7 +416,7 @@ export function ActualizarActivoTab() {
                               : 'success'
                           }
                         >
-                          {a.vencimiento ? `Vence ${toDateInputValue(a.vencimiento)}` : 'Sin vencimiento'}
+                          {a.vencimiento ? `Vence ${formatFechaAR(a.vencimiento)}` : 'Sin vencimiento'}
                         </StatusBadge>
                       </button>
                     </li>

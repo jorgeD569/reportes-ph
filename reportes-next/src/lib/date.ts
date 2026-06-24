@@ -139,6 +139,45 @@ export function toDisplayDate(input: string | Date | null | undefined): string {
 /** Alias de `toDisplayDate` (misma firma y comportamiento). */
 export const formatDateDDMMYYYY = toDisplayDate
 
+/**
+ * Fecha calendario en formato argentino (DD/MM/AAAA) para UI.
+ * No usar para persistencia ni `<input type="date">` (mantener ISO internamente).
+ */
+export function formatFechaAR(fecha: string | null | undefined): string {
+  if (!fecha) return '-'
+
+  const local = parsePlainOrDisplayDateToLocalDate(fecha)
+  if (local) {
+    return local.toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
+
+  const d = new Date(fecha)
+  if (Number.isNaN(d.getTime())) return '-'
+
+  return d.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+}
+
+/** Fecha u hora para UI inventario: ISO plano → DD/MM/AAAA; ISO con hora → es-AR completo. */
+export function formatInventarioFechaDisplay(fecha: string | null | undefined): string {
+  if (!fecha) return '—'
+  const t = String(fecha).trim()
+  if (!t) return '—'
+  if (t.includes('T')) {
+    const fmt = formatDateTimeEsAr(t)
+    return fmt || t
+  }
+  const fmt = formatFechaAR(t)
+  return fmt === '-' ? '—' : fmt
+}
+
 /** Solo día dd/mm/aaaa para fechas de calendario (sin hora ni desfase TZ en YYYY-MM-DD). */
 export function formatFechaSoloDia(fecha?: string | null): string {
   if (!fecha) return '—'

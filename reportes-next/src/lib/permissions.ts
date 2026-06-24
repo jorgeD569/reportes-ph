@@ -35,12 +35,15 @@ export const NAV_OPERADOR: NavItemDef[] = [
   },
 ]
 
-export const NAV_COORDINADOR: NavItemDef[] = [
+export const NAV_DASHBOARD: NavItemDef[] = [
   {
     label: 'Dashboard',
     href: routes.coordinador.dashboard,
     roles: ['supervisor', 'coordinador', 'admin'],
   },
+]
+
+export const NAV_COORDINADOR: NavItemDef[] = [
   {
     label: 'Reportes PH',
     href: routes.coordinador.reportesPh,

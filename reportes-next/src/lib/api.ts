@@ -112,6 +112,8 @@ export async function put<T>(
 }
 
 export async function del<T>(path: string, options?: RequestOptions) {
+  const url = buildUrl(path)
+  console.log('DELETE', url)
   return request<T>('DELETE', path, undefined, options)
 }
 

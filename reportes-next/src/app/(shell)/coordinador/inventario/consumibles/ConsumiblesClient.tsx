@@ -22,7 +22,7 @@ import {
   COORD_TEXT,
   COORD_TEXT_MUTED,
 } from '@/lib/coordinador/theme'
-import { formatDateTimeEsAr } from '@/lib/date'
+import { formatInventarioFechaDisplay } from '@/lib/date'
 import type { Consumible } from '@/lib/types/inventario'
 import { cn } from '@/lib/cn'
 import { stockLabel, stockState } from '@/lib/stock'
@@ -384,7 +384,8 @@ export function ConsumiblesClient() {
                 <ul className="relative space-y-4 border-l-2 border-border pl-4 sm:pl-5">
                   {movimientosOrdenados.map((m, idx) => {
                     const key = m.id ?? `${idx}-${m.fecha}`
-                    const fechaFmt = formatDateTimeEsAr(m.fecha) || String(m.fecha || '—')
+                    const fechaFmt =
+                      formatInventarioFechaDisplay(m.fecha) || String(m.fecha || '—')
                     const obs = String(m.observaciones ?? '').trim()
 
                     return (

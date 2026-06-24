@@ -9,6 +9,7 @@ import { readAppUsuario } from '@/lib/auth'
 import {
   filterNavItemsByRol,
   NAV_COORDINADOR,
+  NAV_DASHBOARD,
   NAV_OPERADOR,
   type NavItemDef,
 } from '@/lib/permissions'
@@ -98,8 +99,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     })
   }, [])
 
+  const navDashboard = filterNavItemsByRol(NAV_DASHBOARD, rol)
   const navOperador = filterNavItemsByRol(NAV_OPERADOR, rol)
   const navCoordinador = filterNavItemsByRol(NAV_COORDINADOR, rol)
+
+  const showNavGroups = navOperador.length > 0 || navCoordinador.length > 0
 
   return (
     <aside className="flex h-screen w-full flex-col overflow-hidden border-r border-white/10 bg-[linear-gradient(180deg,#0f1f2d_0%,#13283a_100%)] px-3 py-4 text-white">
@@ -108,6 +112,18 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-4 overflow-y-auto px-1">
+        {navDashboard.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {navDashboard.map((item) => (
+              <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+            ))}
+          </div>
+        ) : null}
+
+        {navDashboard.length > 0 && showNavGroups ? (
+          <div className="border-t border-white/10" aria-hidden />
+        ) : null}
+
         <NavSection title="Operador" items={navOperador} onNavigate={onNavigate} />
         <NavSection
           title="Coordinador"

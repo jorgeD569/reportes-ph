@@ -3,6 +3,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { GestionInventarioGate } from '@/components/coordinador/inventario/GestionInventarioGate'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { InlineMessage } from '@/components/ui/InlineMessage'
@@ -10,9 +11,11 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { get } from '@/lib/api'
+import { useToast } from '@/components/ui/Toast'
+import { del, get } from '@/lib/api'
 import { routes } from '@/lib/constants/routes'
 import {
+  COORD_BTN_DANGER,
   COORD_BTN_LINK,
   COORD_BTN_PRIMARY,
   COORD_BTN_SECONDARY,
@@ -27,6 +30,12 @@ import {
 } from '@/lib/status'
 import type { GetPartesOperativosResponse, ParteOperativoListItem } from '@/lib/types/partes-operativos'
 
+type DeleteParteOperativoResponse = {
+  ok: boolean
+  message?: string
+  error?: string
+}
+
 export function PartesOperativosGestionClient() {
   return (
     <GestionInventarioGate>
@@ -36,10 +45,15 @@ export function PartesOperativosGestionClient() {
 }
 
 function PartesOperativosGestionAuthed({ logout }: { logout: () => void }) {
+  const { push: pushToast } = useToast()
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [items, setItems] = React.useState<ParteOperativoListItem[]>([])
   const [query, setQuery] = React.useState('')
+  const [deleteConfirm, setDeleteConfirm] = React.useState<{
+    open: boolean
+    parte: ParteOperativoListItem | null
+  }>({ open: false, parte: null })
 
   const load = React.useCallback(async () => {
     const data = await get<GetPartesOperativosResponse>('/partes-operativos')
@@ -83,6 +97,37 @@ function PartesOperativosGestionAuthed({ logout }: { logout: () => void }) {
       return haystack.includes(q)
     })
   }, [items, query])
+
+  function openDeleteConfirm(parte: ParteOperativoListItem) {
+    setDeleteConfirm({ open: true, parte })
+  }
+
+  function closeDeleteConfirm() {
+    setDeleteConfirm({ open: false, parte: null })
+  }
+
+  async function executeDelete() {
+    const parte = deleteConfirm.parte
+    if (!parte) return
+
+    try {
+      await del<DeleteParteOperativoResponse>(
+        `/partes-operativos/${encodeURIComponent(parte.id)}`
+      )
+      closeDeleteConfirm()
+      await load()
+      pushToast({ kind: 'success', title: 'Parte operativo eliminado correctamente' })
+    } catch (e) {
+      pushToast({
+        kind: 'error',
+        title: e instanceof Error ? e.message : 'No se pudo eliminar el parte operativo',
+      })
+      throw e
+    }
+  }
+
+  const deleteDialogDescription =
+    'Se eliminará el parte operativo junto con sus servicios asociados y vinculaciones. Esta acción no se puede deshacer.'
 
   return (
     <div className="space-y-6">
@@ -191,6 +236,13 @@ function PartesOperativosGestionAuthed({ logout }: { logout: () => void }) {
                                 Ver PDF
                               </a>
                             ) : null}
+                            <button
+                              type="button"
+                              className={COORD_BTN_DANGER}
+                              onClick={() => openDeleteConfirm(p)}
+                            >
+                              Eliminar
+                            </button>
                           </div>
                         </Td>
                       </tr>
@@ -201,6 +253,17 @@ function PartesOperativosGestionAuthed({ logout }: { logout: () => void }) {
           </ModernTable>
         </CardBody>
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Eliminar parte operativo"
+        description={deleteDialogDescription}
+        confirmLabel="Eliminar definitivamente"
+        cancelLabel="Cancelar"
+        destructive
+        onCancel={closeDeleteConfirm}
+        onConfirm={executeDelete}
+      />
     </div>
   )
 }
