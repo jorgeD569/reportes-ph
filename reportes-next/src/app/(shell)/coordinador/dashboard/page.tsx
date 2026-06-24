@@ -140,7 +140,7 @@ export default function CoordinadorDashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        subtitle="Panel principal de coordinación (UI nueva)."
+        subtitle="Panel principal de coordinación."
       />
 
       {loading ? <LoadingState label="Cargando métricas…" /> : null}

@@ -95,7 +95,7 @@ export default function NuevaCapacitacionPage() {
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <PageHeader
         title="Nueva capacitación"
-        subtitle="Armá el curso por bloques. Guardado local (MVP)."
+        subtitle="Armá el curso por bloques antes de publicarlo."
         right={
           <Link href={routes.coordinador.capacitaciones} className={COORD_BTN_SECONDARY_LG}>
             Volver al listado

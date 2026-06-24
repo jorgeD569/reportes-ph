@@ -133,8 +133,7 @@ export function PartesOperativosClient() {
           <div>
             <div className="text-lg font-semibold">Listado</div>
             <div className="mt-1 text-sm text-muted">
-              Datos en vivo desde{' '}
-              <code className="font-mono">GET /partes-operativos</code>.
+              Buscá por número de parte, pozo, yacimiento u operadora.
             </div>
           </div>
         </CardHeader>

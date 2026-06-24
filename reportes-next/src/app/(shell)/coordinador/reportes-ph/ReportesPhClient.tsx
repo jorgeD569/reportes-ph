@@ -145,7 +145,7 @@ export function ReportesPhClient() {
           <div>
             <div className={COORD_SECTION_TITLE}>Listado</div>
             <div className={COORD_SECTION_MUTED}>
-              Datos en vivo desde <code className="font-mono">GET /reportes-ph</code>.
+              Buscá y filtrá por estado o palabra clave.
             </div>
           </div>
         </CardHeader>

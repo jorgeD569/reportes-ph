@@ -114,7 +114,7 @@ export default function ParteOperativoPage() {
     <div className={`space-y-6 ${pageSectionClass}`}>
       <PageHeader
         title="Nuevo parte operativo"
-        subtitle="Completá los datos iniciales. Se abrirá una ventana de carga sin menú lateral para continuar el flujo."
+        subtitle="Completá los datos iniciales. Se abrirá una pantalla dedicada para continuar la carga."
       />
 
       <ParteOperativoFlowSteps current="alta" />
@@ -158,8 +158,8 @@ export default function ParteOperativoPage() {
                   onChange={(e) => setField('pozo', e.target.value)}
                   placeholder="Nombre del pozo"
                 />
-              </div>             
-8
+              </div>
+
               <div>
                 <label className={labelClass} htmlFor="operadora">
                   Operadora

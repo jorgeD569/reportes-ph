@@ -14,7 +14,6 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get } from '@/lib/api'
 import {
   COORD_BTN_SECONDARY,
-  COORD_CODE,
   COORD_DROPDOWN_ITEM,
   COORD_DROPDOWN_ITEM_ACTIVE,
   COORD_DROPDOWN_PANEL,
@@ -342,7 +341,7 @@ export function ActivosClient() {
           <div>
             <div className={COORD_SECTION_TITLE}>Listado de activos</div>
             <div className={COORD_SECTION_MUTED}>
-              Datos en vivo desde <code className="font-mono">GET /activos</code>.
+              Activos registrados en inventario.
             </div>
           </div>
           <StatusBadge variant="info">
@@ -359,7 +358,7 @@ export function ActivosClient() {
             />
             <div className="flex flex-wrap items-center gap-2">
               <StatusBadge variant="neutral">
-                {filtro ? `Filtro URL: ${filtro}` : 'Sin filtro URL'}
+                {filtro ? `Filtro: ${filtro}` : 'Sin filtro'}
               </StatusBadge>
               {activeColumnFilters.length > 0 ? (
                 <>
@@ -567,11 +566,8 @@ export function ActivosClient() {
             </div>
 
             <div>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-3">
                 <span className={cn('text-sm font-semibold', COORD_TEXT)}>Historial de movimientos</span>
-                <code className={COORD_CODE}>
-                  GET /activos/{historialActivo.id}/movimientos
-                </code>
               </div>
 
               {historialLoading ? (

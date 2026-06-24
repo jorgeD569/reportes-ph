@@ -14,7 +14,6 @@ import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get } from '@/lib/api'
 import {
   COORD_BTN_SECONDARY,
-  COORD_CODE,
   COORD_INPUT_LG,
   COORD_LABEL,
   COORD_SECTION_MUTED,
@@ -255,7 +254,7 @@ export function ConsumiblesClient() {
           <div>
             <div className={COORD_SECTION_TITLE}>Listado de consumibles</div>
             <div className={COORD_SECTION_MUTED}>
-              Datos en vivo desde <code className="font-mono">GET /consumibles</code>.
+              Materiales y stock actual.
             </div>
           </div>
           <StatusBadge variant="info">{filtro ? `Filtro: ${filtro}` : 'Sin filtro'}</StatusBadge>
@@ -268,7 +267,7 @@ export function ConsumiblesClient() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <StatusBadge variant="neutral">Solo lectura (GET)</StatusBadge>
+            <StatusBadge variant="neutral">Solo consulta</StatusBadge>
           </div>
 
           {loading ? <LoadingState label="Cargando consumibles…" /> : null}
@@ -364,11 +363,8 @@ export function ConsumiblesClient() {
             </div>
 
             <div>
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-3">
                 <span className={cn('text-sm font-semibold', COORD_TEXT)}>Historial de movimientos</span>
-                <code className={COORD_CODE}>
-                  GET /consumibles/{historialConsumible.id}/movimientos
-                </code>
               </div>
 
               {historialLoading ? (

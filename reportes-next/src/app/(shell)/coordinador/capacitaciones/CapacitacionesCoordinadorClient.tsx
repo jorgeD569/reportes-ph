@@ -57,12 +57,6 @@ export function CapacitacionesCoordinadorClient() {
         }
       />
 
-      <InlineMessage
-        kind="info"
-        title="MVP con datos locales"
-        description="Los datos se guardan en localStorage. Los bloques marcados con TODO(API) / TODO(SUPABASE) en src/lib/capacitaciones/api.ts se conectarán al backend."
-      />
-
       {loading ? <LoadingState label="Cargando capacitaciones…" /> : null}
       {error ? (
         <InlineMessage kind="error" title="Error" description={error} />

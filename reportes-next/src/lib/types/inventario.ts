@@ -13,6 +13,11 @@ export type Activo = {
   activo?: boolean | null
 }
 
+export type GetActivoPorSerieResponse = {
+  ok: boolean
+  activo: Activo
+}
+
 export type MovimientoInventario = {
   id?: string
   activo_id: string

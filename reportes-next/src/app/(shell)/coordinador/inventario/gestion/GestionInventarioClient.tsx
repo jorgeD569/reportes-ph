@@ -29,9 +29,12 @@ import {
 import { routes } from '@/lib/constants/routes'
 import { formatInventarioFechaDisplay } from '@/lib/date'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { InlineMessage } from '@/components/ui/InlineMessage'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { get } from '@/lib/api'
 import { cn } from '@/lib/cn'
+import type { Activo, GetActivoPorSerieResponse } from '@/lib/types/inventario'
 
 type TabId = 'activo' | 'actualizar-activo' | 'consumible' | 'mov-activo' | 'mov-consumible'
 
@@ -79,6 +82,10 @@ function inputClass() {
 
 function textareaClass() {
   return `mt-2 ${COORD_TEXTAREA}`
+}
+
+function activoNombreFromDescripcion(activo: Activo): string {
+  return activo.descripcion?.trim() || activo.numero_serie?.trim() || ''
 }
 
 export function GestionInventarioClient() {
@@ -134,6 +141,29 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
     motivo: '',
     observaciones: '',
   })
+  const [movActivoSerieMsg, setMovActivoSerieMsg] = React.useState<string | null>(null)
+
+  const buscarActivoPorSerie = React.useCallback(async () => {
+    const serie = movActivo.numero_serie.trim()
+    setMovActivoSerieMsg(null)
+
+    if (!serie) {
+      setMovActivo((s) => ({ ...s, activo: '' }))
+      return
+    }
+
+    try {
+      const data = await get<GetActivoPorSerieResponse>(
+        `/activos/serie/${encodeURIComponent(serie)}`
+      )
+      const nombre = activoNombreFromDescripcion(data.activo)
+      setMovActivo((s) => ({ ...s, activo: nombre }))
+      setMovActivoSerieMsg(null)
+    } catch {
+      setMovActivo((s) => ({ ...s, activo: '' }))
+      setMovActivoSerieMsg('No se encontró un activo con ese número de serie')
+    }
+  }, [movActivo.numero_serie])
 
   const [movConsumible, setMovConsumible] = React.useState({
     fecha: '',
@@ -281,7 +311,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             <div>
               <div className={COORD_SECTION_TITLE}>Nuevo activo</div>
               <div className={COORD_SECTION_MUTED}>
-                Registro inicial del equipo en inventario (sin envío al servidor todavía).
+                Completá los datos del equipo para registrarlo en inventario.
               </div>
             </div>
           </CardHeader>
@@ -529,11 +559,18 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
             <div>
               <div className={COORD_SECTION_TITLE}>Movimiento de activo</div>
               <div className={COORD_SECTION_MUTED}>
-                Traslado, asignación u otro movimiento de equipo (sin persistencia aún).
+                Traslado, asignación u otro movimiento de equipo.
               </div>
             </div>
           </CardHeader>
           <CardBody className="pt-0">
+            {movActivoSerieMsg ? (
+              <InlineMessage
+                kind="warning"
+                title={movActivoSerieMsg}
+                className="mb-4"
+              />
+            ) : null}
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <label className={COORD_LABEL}>
@@ -544,6 +581,30 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
               </div>
               <div>
                 <label className={COORD_LABEL}>
+                  Número de serie
+                </label>
+                <input
+                  name="numero_serie"
+                  className={inputClass()}
+                  value={movActivo.numero_serie}
+                  onChange={(e) => {
+                    setMovActivoSerieMsg(null)
+                    setMovActivo((s) => ({ ...s, numero_serie: e.target.value }))
+                  }}
+                  onBlur={() => {
+                    void buscarActivoPorSerie()
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void buscarActivoPorSerie()
+                    }
+                  }}
+                  placeholder="Identifica la pieza única que se mueve"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className={COORD_LABEL}>
                   Activo / equipo
                 </label>
                 <input
@@ -551,20 +612,6 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                   value={movActivo.activo}
                   onChange={(e) => setMovActivo((s) => ({ ...s, activo: e.target.value }))}
                   autoComplete="off"
-                />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Número de serie
-                </label>
-                <input
-                  name="numero_serie"
-                  className={inputClass()}
-                  value={movActivo.numero_serie}
-                  onChange={(e) =>
-                    setMovActivo((s) => ({ ...s, numero_serie: e.target.value }))
-                  }
-                  placeholder="Identifica la pieza única que se mueve"
                 />
               </div>
               <div className="md:col-span-2">
@@ -649,7 +696,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
           <CardHeader>
             <div>
               <div className={COORD_SECTION_TITLE}>Movimiento de consumible</div>
-              <div className={COORD_SECTION_MUTED}>Registro operativo de stock (sin guardar).</div>
+              <div className={COORD_SECTION_MUTED}>Ingreso, egreso o ajuste de material.</div>
             </div>
           </CardHeader>
           <CardBody className="pt-0">
@@ -803,8 +850,7 @@ function OperativePreviewCard({
         <div>
           <div className={COORD_SECTION_TITLE}>{preview.docTitle}</div>
           <div className={COORD_SECTION_MUTED}>
-            Vista previa interna · no persistida. Los botones de guardado/PDF se habilitarán cuando el backend
-            confirme el registro.
+            Revisá los datos antes de confirmar el registro.
           </div>
         </div>
         <button
@@ -864,7 +910,7 @@ function OperativePreviewCard({
           <button
             type="button"
             disabled
-            title="Se conectará a POST cuando el backend confirme el contrato."
+            title="Próximamente disponible"
             className={COORD_BTN_DISABLED}
           >
             Guardar registro
@@ -872,7 +918,7 @@ function OperativePreviewCard({
           <button
             type="button"
             disabled
-            title="Se usará POST /generar-pdf-movimiento (o endpoint equivalente) cuando exista en backend."
+            title="Próximamente disponible"
             className={COORD_BTN_DISABLED}
           >
             Generar PDF

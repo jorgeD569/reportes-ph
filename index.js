@@ -1483,6 +1483,50 @@ app.get('/activos', async (req, res) => {
   }
 })
 
+/**
+ * GET /activos/serie/:numeroSerie
+ * Busca un activo por número de serie (comparación insensible a mayúsculas y espacios).
+ */
+app.get('/activos/serie/:numeroSerie', async (req, res) => {
+  try {
+    const serie = decodeURIComponent(req.params.numeroSerie || '').trim().toLowerCase()
+
+    if (!serie) {
+      return res.status(400).json({
+        ok: false,
+        error: 'Número de serie requerido',
+      })
+    }
+
+    const { data, error } = await supabase
+      .from('activos')
+      .select('id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a')
+      .eq('activo', true)
+      .not('numero_serie', 'is', null)
+
+    if (error) throw error
+
+    const activo = (data || []).find(
+      (row) => String(row.numero_serie || '').trim().toLowerCase() === serie
+    )
+
+    if (!activo) {
+      return res.status(404).json({
+        ok: false,
+        error: 'No se encontró un activo con ese número de serie',
+      })
+    }
+
+    return res.json({ ok: true, activo })
+  } catch (error) {
+    console.error('Error buscando activo por serie:', error)
+    res.status(500).json({
+      ok: false,
+      error: error.message || 'Error buscando activo por número de serie',
+    })
+  }
+})
+
 // =========================
 // ACTIVOS - CREAR
 // =========================
