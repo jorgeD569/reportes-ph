@@ -26,6 +26,9 @@ export const routes = {
       parteOperativo: (id: string) =>
         `/coordinador/gestion/partes-operativos/${encodeURIComponent(id)}`,
     },
+    configuracion: {
+      contratos: '/coordinador/configuracion/contratos',
+    },
     inventario: {
       activos: '/coordinador/inventario/activos',
       consumibles: '/coordinador/inventario/consumibles',

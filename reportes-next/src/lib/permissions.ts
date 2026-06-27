@@ -15,6 +15,7 @@ const ADMIN_ONLY_COORDINADOR_PREFIXES = ['/coordinador/usuarios'] as const
 const GESTION_PATH_PREFIXES = [
   '/coordinador/inventario/gestion',
   '/coordinador/gestion/',
+  '/coordinador/configuracion/',
 ] as const
 
 export const NAV_OPERADOR: NavItemDef[] = [

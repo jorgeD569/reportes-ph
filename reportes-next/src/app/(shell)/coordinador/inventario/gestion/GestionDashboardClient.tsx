@@ -28,6 +28,12 @@ const MODULES = [
     href: routes.coordinador.capacitaciones,
   },
   {
+    title: 'Gestión de contratos',
+    description: 'Operadoras, contratos e ítems certificables por contrato.',
+    actionLabel: 'Ingresar a contratos',
+    href: routes.coordinador.configuracion.contratos,
+  },
+  {
     title: 'Configuración del sistema',
     description: 'Parámetros generales, usuarios, permisos y opciones futuras.',
     actionLabel: 'Próximamente',

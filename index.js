@@ -3633,6 +3633,760 @@ app.delete('/partes-operativos/:id', async (req, res) => {
     }
   })
 
+  // =========================
+  // OPERADORAS, CONTRATOS E ÍTEMS
+  // =========================
+
+  function normalizeOperadoraNombre(nombre) {
+    return String(nombre || '').trim().toLowerCase()
+  }
+
+  async function clearContratoDefaultForOperadora(operadoraId, excludeContratoId = null) {
+    let query = supabase
+      .from('contratos')
+      .update({
+        es_default: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('operadora_id', operadoraId)
+      .eq('es_default', true)
+
+    if (excludeContratoId) {
+      query = query.neq('id', excludeContratoId)
+    }
+
+    const { error } = await query
+    if (error) throw error
+  }
+
+  const CONTRATO_ITEMS_TABLE = 'contrato_items'
+
+  app.get('/operadoras', async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from('operadoras')
+        .select('*')
+        .order('nombre', { ascending: true })
+
+      if (error) throw error
+
+      res.json({ ok: true, operadoras: data || [] })
+    } catch (err) {
+      console.error('Error listando operadoras:', err)
+      res.status(500).json({ ok: false, error: 'Error al obtener operadoras' })
+    }
+  })
+
+  app.post('/operadoras', async (req, res) => {
+    try {
+      const { nombre, activa } = req.body || {}
+      const nombreTrimmed = String(nombre || '').trim()
+
+      if (!nombreTrimmed) {
+        return res.status(400).json({ ok: false, error: 'El nombre es obligatorio' })
+      }
+
+      const now = new Date().toISOString()
+      const payload = {
+        nombre: nombreTrimmed,
+        nombre_normalizado: normalizeOperadoraNombre(nombreTrimmed),
+        activa: activa !== false,
+        created_at: now,
+        updated_at: now,
+      }
+
+      const { data, error } = await supabase
+        .from('operadoras')
+        .insert([payload])
+        .select('*')
+        .single()
+
+      if (error) {
+        if (isDuplicateKeyError(error)) {
+          return res.status(409).json({
+            ok: false,
+            error: 'Ya existe una operadora con ese nombre',
+          })
+        }
+        throw error
+      }
+
+      res.status(201).json({ ok: true, operadora: data })
+    } catch (err) {
+      console.error('Error creando operadora:', err)
+      res.status(500).json({ ok: false, error: 'Error al crear operadora' })
+    }
+  })
+
+  app.put('/operadoras/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+      const { nombre, activa } = req.body || {}
+      const updates = { updated_at: new Date().toISOString() }
+
+      if (nombre !== undefined) {
+        const nombreTrimmed = String(nombre || '').trim()
+        if (!nombreTrimmed) {
+          return res.status(400).json({ ok: false, error: 'El nombre es obligatorio' })
+        }
+        updates.nombre = nombreTrimmed
+        updates.nombre_normalizado = normalizeOperadoraNombre(nombreTrimmed)
+      }
+
+      if (activa !== undefined) {
+        updates.activa = Boolean(activa)
+      }
+
+      const { data, error } = await supabase
+        .from('operadoras')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) {
+        if (isDuplicateKeyError(error)) {
+          return res.status(409).json({
+            ok: false,
+            error: 'Ya existe una operadora con ese nombre',
+          })
+        }
+        throw error
+      }
+
+      if (!data) {
+        return res.status(404).json({ ok: false, error: 'Operadora no encontrada' })
+      }
+
+      res.json({ ok: true, operadora: data })
+    } catch (err) {
+      console.error('Error actualizando operadora:', err)
+      res.status(500).json({ ok: false, error: 'Error al actualizar operadora' })
+    }
+  })
+
+  app.patch('/operadoras/:id/estado', async (req, res) => {
+    try {
+      const { id } = req.params
+      const { activa } = req.body || {}
+
+      if (activa === undefined) {
+        return res.status(400).json({ ok: false, error: 'Falta activa' })
+      }
+
+      const { data, error } = await supabase
+        .from('operadoras')
+        .update({
+          activa: Boolean(activa),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        return res.status(404).json({ ok: false, error: 'Operadora no encontrada' })
+      }
+
+      res.json({ ok: true, operadora: data })
+    } catch (err) {
+      console.error('Error actualizando estado de operadora:', err)
+      res.status(500).json({ ok: false, error: 'Error al actualizar estado de operadora' })
+    }
+  })
+
+  app.get('/operadoras/:id/contratos', async (req, res) => {
+    try {
+      const { id } = req.params
+
+      const { data, error } = await supabase
+        .from('contratos')
+        .select('*')
+        .eq('operadora_id', id)
+        .order('nombre', { ascending: true })
+
+      if (error) throw error
+
+      const contratoRows = data || []
+      const contratoIds = contratoRows.map((row) => row.id)
+      const itemsCountByContrato = {}
+
+      if (contratoIds.length > 0) {
+        const { data: itemRows, error: itemsError } = await supabase
+          .from(CONTRATO_ITEMS_TABLE)
+          .select('contrato_id')
+          .in('contrato_id', contratoIds)
+
+        if (itemsError) throw itemsError
+
+        for (const row of itemRows || []) {
+          itemsCountByContrato[row.contrato_id] =
+            (itemsCountByContrato[row.contrato_id] || 0) + 1
+        }
+      }
+
+      const contratos = contratoRows.map((row) => ({
+        ...row,
+        items_count: itemsCountByContrato[row.id] || 0,
+      }))
+
+      res.json({ ok: true, contratos })
+    } catch (err) {
+      console.error('Error listando contratos:', err)
+      res.status(500).json({ ok: false, error: 'Error al obtener contratos' })
+    }
+  })
+
+  app.post('/contratos', async (req, res) => {
+    try {
+      const {
+        operadora_id,
+        codigo,
+        nombre,
+        fecha_inicio,
+        fecha_fin,
+        activo,
+        es_default,
+      } = req.body || {}
+
+      if (!String(operadora_id || '').trim()) {
+        return res.status(400).json({ ok: false, error: 'Falta operadora_id' })
+      }
+
+      const nombreTrimmed = String(nombre || '').trim()
+      if (!nombreTrimmed) {
+        return res.status(400).json({ ok: false, error: 'El nombre es obligatorio' })
+      }
+
+      const now = new Date().toISOString()
+      const activoValue = activo !== false
+      const esDefaultValue = Boolean(es_default) && activoValue
+
+      if (esDefaultValue) {
+        await clearContratoDefaultForOperadora(operadora_id)
+      }
+
+      const payload = {
+        operadora_id,
+        codigo: codigo != null && String(codigo).trim() ? String(codigo).trim() : null,
+        nombre: nombreTrimmed,
+        fecha_inicio: fecha_inicio || null,
+        fecha_fin: fecha_fin || null,
+        activo: activoValue,
+        es_default: esDefaultValue,
+        updated_at: now,
+        created_at: now,
+      }
+
+      const { data, error } = await supabase
+        .from('contratos')
+        .insert([payload])
+        .select('*')
+        .single()
+
+      if (error) throw error
+
+      res.status(201).json({ ok: true, contrato: data })
+    } catch (err) {
+      console.error('Error creando contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al crear contrato' })
+    }
+  })
+
+  app.put('/contratos/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+      const {
+        codigo,
+        nombre,
+        fecha_inicio,
+        fecha_fin,
+        activo,
+        es_default,
+      } = req.body || {}
+
+      const { data: existing, error: existingError } = await supabase
+        .from('contratos')
+        .select('id, operadora_id, activo, es_default')
+        .eq('id', id)
+        .maybeSingle()
+
+      if (existingError) throw existingError
+
+      if (!existing) {
+        return res.status(404).json({ ok: false, error: 'Contrato no encontrado' })
+      }
+
+      const updates = { updated_at: new Date().toISOString() }
+
+      if (codigo !== undefined) {
+        updates.codigo =
+          codigo != null && String(codigo).trim() ? String(codigo).trim() : null
+      }
+
+      if (nombre !== undefined) {
+        const nombreTrimmed = String(nombre || '').trim()
+        if (!nombreTrimmed) {
+          return res.status(400).json({ ok: false, error: 'El nombre es obligatorio' })
+        }
+        updates.nombre = nombreTrimmed
+      }
+
+      if (fecha_inicio !== undefined) {
+        updates.fecha_inicio = fecha_inicio || null
+      }
+
+      if (fecha_fin !== undefined) {
+        updates.fecha_fin = fecha_fin || null
+      }
+
+      if (activo !== undefined) {
+        updates.activo = Boolean(activo)
+        if (!updates.activo) {
+          updates.es_default = false
+        }
+      }
+
+      const nextActivo = updates.activo !== undefined ? updates.activo : existing.activo
+
+      if (es_default !== undefined) {
+        if (es_default && !nextActivo) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Solo un contrato activo puede ser default',
+          })
+        }
+        updates.es_default = Boolean(es_default) && nextActivo
+      }
+
+      if (updates.es_default === true) {
+        await clearContratoDefaultForOperadora(existing.operadora_id, id)
+      }
+
+      const { data, error } = await supabase
+        .from('contratos')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) throw error
+
+      res.json({ ok: true, contrato: data })
+    } catch (err) {
+      console.error('Error actualizando contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al actualizar contrato' })
+    }
+  })
+
+  app.patch('/contratos/:id/estado', async (req, res) => {
+    try {
+      const { id } = req.params
+      const { activo } = req.body || {}
+
+      if (activo === undefined) {
+        return res.status(400).json({ ok: false, error: 'Falta activo' })
+      }
+
+      const updates = {
+        activo: Boolean(activo),
+        updated_at: new Date().toISOString(),
+      }
+
+      if (!updates.activo) {
+        updates.es_default = false
+      }
+
+      const { data, error } = await supabase
+        .from('contratos')
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        return res.status(404).json({ ok: false, error: 'Contrato no encontrado' })
+      }
+
+      res.json({ ok: true, contrato: data })
+    } catch (err) {
+      console.error('Error actualizando estado de contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al actualizar estado de contrato' })
+    }
+  })
+
+  app.patch('/contratos/:id/default', async (req, res) => {
+    try {
+      const { id } = req.params
+
+      const { data: existing, error: existingError } = await supabase
+        .from('contratos')
+        .select('id, operadora_id, activo')
+        .eq('id', id)
+        .maybeSingle()
+
+      if (existingError) throw existingError
+
+      if (!existing) {
+        return res.status(404).json({ ok: false, error: 'Contrato no encontrado' })
+      }
+
+      if (!existing.activo) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Solo un contrato activo puede ser default',
+        })
+      }
+
+      await clearContratoDefaultForOperadora(existing.operadora_id, id)
+
+      const now = new Date().toISOString()
+      const { data, error } = await supabase
+        .from('contratos')
+        .update({ es_default: true, updated_at: now })
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) throw error
+
+      res.json({ ok: true, contrato: data })
+    } catch (err) {
+      console.error('Error marcando contrato default:', err)
+      res.status(500).json({ ok: false, error: 'Error al marcar contrato default' })
+    }
+  })
+
+  app.get('/contratos/:id/items', async (req, res) => {
+    try {
+      const { id } = req.params
+
+      const { data, error } = await supabase
+        .from(CONTRATO_ITEMS_TABLE)
+        .select('*')
+        .eq('contrato_id', id)
+        .order('orden', { ascending: true, nullsFirst: false })
+        .order('codigo', { ascending: true })
+        .order('posicion', { ascending: true })
+
+      if (error) throw error
+
+      res.json({ ok: true, items: data || [] })
+    } catch (err) {
+      console.error('Error listando ítems de contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al obtener ítems del contrato' })
+    }
+  })
+
+  app.post('/contratos/:id/items/importar', async (req, res) => {
+    try {
+      const { id: contratoId } = req.params
+      const { items } = req.body || {}
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          ok: false,
+          error: 'No hay ítems para importar',
+        })
+      }
+
+      const { data: contrato, error: contratoError } = await supabase
+        .from('contratos')
+        .select('id')
+        .eq('id', contratoId)
+        .maybeSingle()
+
+      if (contratoError) throw contratoError
+
+      if (!contrato) {
+        return res.status(404).json({ ok: false, error: 'Contrato no encontrado' })
+      }
+
+      const { data: existingRows, error: existingError } = await supabase
+        .from(CONTRATO_ITEMS_TABLE)
+        .select('id, codigo, posicion')
+        .eq('contrato_id', contratoId)
+
+      if (existingError) throw existingError
+
+      const existingMap = new Map()
+      for (const row of existingRows || []) {
+        existingMap.set(`${row.codigo}|${row.posicion}`, row.id)
+      }
+
+      const now = new Date().toISOString()
+      let insertados = 0
+      let actualizados = 0
+
+      for (const item of items) {
+        const codigo = String(item.codigo || '').trim()
+        const posicion = String(item.posicion || '').trim()
+        const descripcion = String(item.descripcion || '').trim()
+
+        if (!codigo || !posicion || !descripcion) {
+          return res.status(400).json({
+            ok: false,
+            error: 'Cada ítem debe incluir codigo, posicion y descripcion',
+          })
+        }
+
+        const payload = {
+          codigo,
+          posicion,
+          descripcion,
+          linea:
+            item.linea != null && String(item.linea).trim()
+              ? String(item.linea).trim()
+              : null,
+          tipo_item: item.tipo_item ? String(item.tipo_item).trim() : 'SERVICIO',
+          unidad_medida: null,
+          orden: item.orden != null && item.orden !== '' ? Number(item.orden) : null,
+          activo: true,
+          updated_at: now,
+        }
+
+        const key = `${codigo}|${posicion}`
+        const existingId = existingMap.get(key)
+
+        if (existingId) {
+          const { error: updateError } = await supabase
+            .from(CONTRATO_ITEMS_TABLE)
+            .update(payload)
+            .eq('id', existingId)
+
+          if (updateError) throw updateError
+          actualizados += 1
+        } else {
+          const { error: insertError } = await supabase
+            .from(CONTRATO_ITEMS_TABLE)
+            .insert([
+              {
+                ...payload,
+                contrato_id: contratoId,
+                created_at: now,
+              },
+            ])
+
+          if (insertError) throw insertError
+          insertados += 1
+        }
+      }
+
+      res.json({
+        ok: true,
+        insertados,
+        actualizados,
+        total: insertados + actualizados,
+      })
+    } catch (err) {
+      console.error('Error importando ítems de contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al importar ítems del contrato' })
+    }
+  })
+
+  app.post('/contrato-items', async (req, res) => {
+    try {
+      const {
+        contrato_id,
+        codigo,
+        posicion,
+        linea,
+        descripcion,
+        tipo_item,
+        unidad_medida,
+        orden,
+        activo,
+      } = req.body || {}
+
+      if (!String(contrato_id || '').trim()) {
+        return res.status(400).json({ ok: false, error: 'Falta contrato_id' })
+      }
+
+      const codigoTrimmed = String(codigo || '').trim()
+      const posicionTrimmed = String(posicion || '').trim()
+      const descripcionTrimmed = String(descripcion || '').trim()
+
+      if (!codigoTrimmed) {
+        return res.status(400).json({ ok: false, error: 'El código es obligatorio' })
+      }
+
+      if (!posicionTrimmed) {
+        return res.status(400).json({ ok: false, error: 'La posición es obligatoria' })
+      }
+
+      if (!descripcionTrimmed) {
+        return res.status(400).json({ ok: false, error: 'La descripción es obligatoria' })
+      }
+
+      const now = new Date().toISOString()
+      const payload = {
+        contrato_id,
+        codigo: codigoTrimmed,
+        posicion: posicionTrimmed,
+        linea: linea != null && String(linea).trim() ? String(linea).trim() : null,
+        descripcion: descripcionTrimmed,
+        tipo_item: tipo_item ? String(tipo_item).trim() : 'SERVICIO',
+        unidad_medida:
+          unidad_medida != null && String(unidad_medida).trim()
+            ? String(unidad_medida).trim()
+            : null,
+        orden: orden != null && orden !== '' ? Number(orden) : null,
+        activo: activo !== false,
+        created_at: now,
+        updated_at: now,
+      }
+
+      const { data, error } = await supabase
+        .from(CONTRATO_ITEMS_TABLE)
+        .insert([payload])
+        .select('*')
+        .single()
+
+      if (error) {
+        if (isDuplicateKeyError(error)) {
+          return res.status(409).json({
+            ok: false,
+            error: 'Ya existe un ítem con ese código y posición en el contrato',
+          })
+        }
+        throw error
+      }
+
+      res.status(201).json({ ok: true, item: data })
+    } catch (err) {
+      console.error('Error creando ítem de contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al crear ítem del contrato' })
+    }
+  })
+
+  app.put('/contrato-items/:id', async (req, res) => {
+    try {
+      const { id } = req.params
+      const {
+        codigo,
+        posicion,
+        linea,
+        descripcion,
+        tipo_item,
+        unidad_medida,
+        orden,
+        activo,
+      } = req.body || {}
+
+      const updates = { updated_at: new Date().toISOString() }
+
+      if (codigo !== undefined) {
+        const codigoTrimmed = String(codigo || '').trim()
+        if (!codigoTrimmed) {
+          return res.status(400).json({ ok: false, error: 'El código es obligatorio' })
+        }
+        updates.codigo = codigoTrimmed
+      }
+
+      if (posicion !== undefined) {
+        const posicionTrimmed = String(posicion || '').trim()
+        if (!posicionTrimmed) {
+          return res.status(400).json({ ok: false, error: 'La posición es obligatoria' })
+        }
+        updates.posicion = posicionTrimmed
+      }
+
+      if (linea !== undefined) {
+        updates.linea =
+          linea != null && String(linea).trim() ? String(linea).trim() : null
+      }
+
+      if (descripcion !== undefined) {
+        const descripcionTrimmed = String(descripcion || '').trim()
+        if (!descripcionTrimmed) {
+          return res.status(400).json({ ok: false, error: 'La descripción es obligatoria' })
+        }
+        updates.descripcion = descripcionTrimmed
+      }
+
+      if (tipo_item !== undefined) {
+        updates.tipo_item = String(tipo_item || 'SERVICIO').trim() || 'SERVICIO'
+      }
+
+      if (unidad_medida !== undefined) {
+        updates.unidad_medida =
+          unidad_medida != null && String(unidad_medida).trim()
+            ? String(unidad_medida).trim()
+            : null
+      }
+
+      if (orden !== undefined) {
+        updates.orden = orden != null && orden !== '' ? Number(orden) : null
+      }
+
+      if (activo !== undefined) {
+        updates.activo = Boolean(activo)
+      }
+
+      const { data, error } = await supabase
+        .from(CONTRATO_ITEMS_TABLE)
+        .update(updates)
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) {
+        if (isDuplicateKeyError(error)) {
+          return res.status(409).json({
+            ok: false,
+            error: 'Ya existe un ítem con ese código y posición en el contrato',
+          })
+        }
+        throw error
+      }
+
+      if (!data) {
+        return res.status(404).json({ ok: false, error: 'Ítem no encontrado' })
+      }
+
+      res.json({ ok: true, item: data })
+    } catch (err) {
+      console.error('Error actualizando ítem de contrato:', err)
+      res.status(500).json({ ok: false, error: 'Error al actualizar ítem del contrato' })
+    }
+  })
+
+  app.patch('/contrato-items/:id/estado', async (req, res) => {
+    try {
+      const { id } = req.params
+      const { activo } = req.body || {}
+
+      if (activo === undefined) {
+        return res.status(400).json({ ok: false, error: 'Falta activo' })
+      }
+
+      const { data, error } = await supabase
+        .from(CONTRATO_ITEMS_TABLE)
+        .update({
+          activo: Boolean(activo),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select('*')
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        return res.status(404).json({ ok: false, error: 'Ítem no encontrado' })
+      }
+
+      res.json({ ok: true, item: data })
+    } catch (err) {
+      console.error('Error actualizando estado de ítem:', err)
+      res.status(500).json({ ok: false, error: 'Error al actualizar estado del ítem' })
+    }
+  })
+
   // Cierre elegante del browser al apagar el servidor
   process.on('SIGINT', async () => {
     if (browserInstance) await browserInstance.close()
