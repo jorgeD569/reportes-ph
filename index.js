@@ -2053,6 +2053,42 @@ app.get('/partes-operativos', async (req, res) => {
 })
 
 // CREAR PARTE
+function normalizeClientUuid(value) {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      trimmed
+    )
+  ) {
+    return null
+  }
+  return trimmed.toLowerCase()
+}
+
+function isUniqueViolation(error) {
+  if (!error) return false
+  const code = String(error.code || '')
+  const msg = String(error.message || error.details || '').toLowerCase()
+  return (
+    code === '23505' ||
+    msg.includes('duplicate key') ||
+    msg.includes('unique constraint') ||
+    msg.includes('partes_operativos_client_uuid')
+  )
+}
+
+async function findParteOperativoByClientUuid(clientUuid) {
+  const { data, error } = await supabase
+    .from('partes_operativos')
+    .select('*')
+    .eq('client_uuid', clientUuid)
+    .maybeSingle()
+
+  if (error) throw error
+  return data || null
+}
+
 app.post('/partes-operativos', async (req, res) => {
   try {
 
@@ -2068,7 +2104,8 @@ app.post('/partes-operativos', async (req, res) => {
       supervisor_operativo = null,
       operador_1 = null,
       operador_2 = null,
-      operador_3 = null
+      operador_3 = null,
+      client_uuid: clientUuidRaw = null,
     } = req.body
 
     const fechaParte =
@@ -2083,31 +2120,64 @@ app.post('/partes-operativos', async (req, res) => {
       })
     }
 
+    const clientUuid = normalizeClientUuid(clientUuidRaw)
+
+    // Idempotencia: si ya existe un parte con este client_uuid, devolverlo.
+    if (clientUuid) {
+      const existente = await findParteOperativoByClientUuid(clientUuid)
+      if (existente) {
+        return res.json({
+          ok: true,
+          parte: existente,
+          idempotent: true,
+        })
+      }
+    }
+
+    const insertPayload = {
+      pozo,
+      fecha: fechaParte,
+      yacimiento,
+      operadora,
+      contratista,
+      unidad_pesada,
+      salida_desde,
+      km,
+      supervisor_operativo,
+      operador_1,
+      operador_2,
+      operador_3,
+      estado: 'abierto',
+    }
+    if (clientUuid) {
+      insertPayload.client_uuid = clientUuid
+    }
+
     const { data, error } = await supabase
       .from('partes_operativos')
-      .insert([{
-        pozo,
-        fecha: fechaParte,
-        yacimiento,
-        operadora,
-        contratista,
-        unidad_pesada,
-        salida_desde,
-        km,
-        supervisor_operativo,
-        operador_1,
-        operador_2,
-        operador_3,
-        estado: 'abierto'
-      }])
+      .insert([insertPayload])
       .select()
       .single()
 
-    if (error) throw error
+    if (error) {
+      // Carrera: otro request insertó el mismo client_uuid entre el SELECT y el INSERT.
+      if (clientUuid && isUniqueViolation(error)) {
+        const existente = await findParteOperativoByClientUuid(clientUuid)
+        if (existente) {
+          return res.json({
+            ok: true,
+            parte: existente,
+            idempotent: true,
+          })
+        }
+      }
+      throw error
+    }
 
     res.json({
       ok: true,
-      parte: data
+      parte: data,
+      idempotent: false,
     })
 
   } catch (error) {
