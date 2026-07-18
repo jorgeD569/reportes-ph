@@ -6,6 +6,9 @@
   const bcrypt = require('bcryptjs')
   const nodemailer = require('nodemailer')
   const { chromium } = require('playwright')
+  const {
+    registerActivosRelevamientoRoutes,
+  } = require('./activosRelevamiento')
 
   const BCRYPT_ROUNDS = 10
   const MIN_PASSWORD_LENGTH = 8
@@ -1437,6 +1440,7 @@ async function registrarMovimiento({
       .from('activos')
       .select('*')
       .eq('activo', true)
+      .eq('estado_revision', 'aprobado')
 
     if (error) throw error
 
@@ -1518,6 +1522,7 @@ app.get('/activos', async (req, res) => {
       .from('activos')
       .select('*')
       .eq('activo', true)
+      .eq('estado_revision', 'aprobado')
       .order('descripcion', { ascending: true })
 
     if (categoria) {
@@ -1541,7 +1546,9 @@ app.get('/activos', async (req, res) => {
  */
 app.get('/activos/serie/:numeroSerie', async (req, res) => {
   try {
-    const serie = decodeURIComponent(req.params.numeroSerie || '').trim().toLowerCase()
+    const serie = String(decodeURIComponent(req.params.numeroSerie || ''))
+      .trim()
+      .toUpperCase()
 
     if (!serie) {
       return res.status(400).json({
@@ -1552,14 +1559,13 @@ app.get('/activos/serie/:numeroSerie', async (req, res) => {
 
     const { data, error } = await supabase
       .from('activos')
-      .select('id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a')
-      .eq('activo', true)
+      .select('id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a, activo, estado_revision')
       .not('numero_serie', 'is', null)
 
     if (error) throw error
 
     const activo = (data || []).find(
-      (row) => String(row.numero_serie || '').trim().toLowerCase() === serie
+      (row) => String(row.numero_serie || '').trim().toUpperCase() === serie
     )
 
     if (!activo) {
@@ -1580,51 +1586,14 @@ app.get('/activos/serie/:numeroSerie', async (req, res) => {
 })
 
 // =========================
-// ACTIVOS - CREAR
+// ACTIVOS - CREAR / PENDIENTES / ADJUNTOS / APROBAR
+// (implementado en activosRelevamiento.js)
 // =========================
-app.post('/activos', async (req, res) => {
-
-  try {
-
-    const { data, error } = await supabase
-      .from('activos')
-      .insert([req.body])
-      .select()
-      .single()
-
-    if (error) throw error
-
-    // REGISTRAR MOVIMIENTO
-    await registrarMovimiento({
-      activo_id: data.id,
-
-      tipo_movimiento: 'creacion',
-
-      descripcion: 'Activo creado',
-
-      usuario: 'Administrador',
-
-      estado_nuevo: data.estado,
-      ubicacion_nueva: data.ubicacion,
-      asignado_nuevo: data.asignado_a,
-
-      observaciones: data.observaciones
-    })
-
-    res.json({
-      ok: true,
-      activo: data
-    })
-
-  } catch (error) {
-
-    console.error('Error creando activo:', error)
-
-    res.status(500).json({
-      ok: false,
-      error: error.message
-    })
-  }
+registerActivosRelevamientoRoutes({
+  app,
+  supabase,
+  registrarMovimiento,
+  base64ToBuffer,
 })
 
 // =========================
@@ -1652,6 +1621,12 @@ function pickActivoUpdateFields(body) {
     if (Object.prototype.hasOwnProperty.call(body, key)) {
       payload[key] = body[key]
     }
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, 'numero_serie')) {
+    const serie = String(payload.numero_serie ?? '')
+      .trim()
+      .toUpperCase()
+    payload.numero_serie = serie === '' ? null : serie
   }
   return payload
 }

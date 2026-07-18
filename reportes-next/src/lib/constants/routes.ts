@@ -31,6 +31,7 @@ export const routes = {
     },
     inventario: {
       activos: '/coordinador/inventario/activos',
+      relevamientosPendientes: '/coordinador/inventario/relevamientos-pendientes',
       consumibles: '/coordinador/inventario/consumibles',
       gestion: '/coordinador/inventario/gestion',
       gestionInventario: '/coordinador/inventario/gestion/inventario',

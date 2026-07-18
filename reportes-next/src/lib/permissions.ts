@@ -66,6 +66,11 @@ export const NAV_COORDINADOR: NavItemDef[] = [
     roles: ['coordinador', 'admin'],
   },
   {
+    label: 'Relevamientos',
+    href: routes.coordinador.inventario.relevamientosPendientes,
+    roles: ['coordinador', 'admin'],
+  },
+  {
     label: 'Consumibles',
     href: routes.coordinador.inventario.consumibles,
     roles: ['coordinador', 'admin'],
