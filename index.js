@@ -1458,6 +1458,58 @@ async function registrarMovimiento({
   }
 })
 
+/**
+ * GET /catalogos-parte-operativo
+ * Cat├ílogos para el alta de Parte Operativo (usado por la app offline).
+ * - operadoras: tabla real `operadoras` (con id, nombre y estado activa).
+ * - yacimientos: nombres distintos reales tomados de `partes_operativos`
+ *   (no existe tabla de yacimientos; el campo es texto libre).
+ * Operadora y Yacimiento no tienen relaci├│n en la base: son independientes.
+ */
+app.get('/catalogos-parte-operativo', async (req, res) => {
+  try {
+    const { data: operadorasData, error: operadorasError } = await supabase
+      .from('operadoras')
+      .select('id, nombre, activa')
+      .order('nombre', { ascending: true })
+
+    if (operadorasError) throw operadorasError
+
+    const { data: partesData, error: partesError } = await supabase
+      .from('partes_operativos')
+      .select('yacimiento')
+      .not('yacimiento', 'is', null)
+
+    if (partesError) throw partesError
+
+    const yacimientosMap = new Map()
+    for (const row of partesData || []) {
+      const nombre = String(row.yacimiento || '').trim()
+      if (!nombre) continue
+      const key = nombre.toUpperCase()
+      if (!yacimientosMap.has(key)) yacimientosMap.set(key, nombre)
+    }
+
+    const yacimientos = Array.from(yacimientosMap.values())
+      .sort((a, b) => a.localeCompare(b))
+      .map((nombre) => ({ nombre }))
+
+    const operadoras = (operadorasData || []).map((o) => ({
+      id: o.id,
+      nombre: o.nombre,
+      activa: o.activa !== false,
+    }))
+
+    res.json({ ok: true, operadoras, yacimientos })
+  } catch (err) {
+    console.error('Error obteniendo cat├ílogos de parte operativo:', err)
+    res.status(500).json({
+      ok: false,
+      error: 'Error al obtener cat├ílogos de parte operativo',
+    })
+  }
+})
+
 app.get('/activos', async (req, res) => {
   try {
     const { categoria } = req.query
