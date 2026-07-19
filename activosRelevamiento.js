@@ -127,21 +127,32 @@ function optStr(v) {
  * es_conjunto desde payload: solo boolean estricto.
  * Ausente → false. "true"/1/texto → inválido.
  */
-function resolveEsConjuntoPayload(body) {
-  const b = body || {}
+function resolveEsConjuntoOptional(source) {
+  const b = source || {}
   if (
     !Object.prototype.hasOwnProperty.call(b, 'es_conjunto') ||
     b.es_conjunto === undefined
   ) {
-    return { ok: true, value: false }
+    return { ok: true, present: false }
   }
   if (typeof b.es_conjunto === 'boolean') {
-    return { ok: true, value: b.es_conjunto }
+    return { ok: true, present: true, value: b.es_conjunto }
   }
   return {
     ok: false,
+    code: 'ES_CONJUNTO_INVALIDO',
     error: 'es_conjunto inválido: debe ser boolean true o false',
   }
+}
+
+/**
+ * Alta / create: ausente → false. Misma validación estricta.
+ */
+function resolveEsConjuntoPayload(body) {
+  const r = resolveEsConjuntoOptional(body)
+  if (!r.ok) return r
+  if (!r.present) return { ok: true, value: false }
+  return { ok: true, value: r.value }
 }
 
 /**
@@ -488,9 +499,24 @@ function registerActivosRelevamientoRoutes({
         'observaciones',
         'codigo_interno',
         'dias_aviso',
+        'es_conjunto',
       ]
       for (const key of allow) {
         if (Object.prototype.hasOwnProperty.call(patch, key)) {
+          if (key === 'es_conjunto') {
+            const parsed = resolveEsConjuntoOptional({ es_conjunto: patch.es_conjunto })
+            if (!parsed.ok) {
+              return res.status(400).json({
+                ok: false,
+                code: parsed.code || 'ES_CONJUNTO_INVALIDO',
+                error: parsed.error,
+              })
+            }
+            if (parsed.present) {
+              updatePayload.es_conjunto = parsed.value
+            }
+            continue
+          }
           if (key === 'categoria') {
             const cat = normalizeCategoria(patch[key])
             if (!cat) {
@@ -534,6 +560,51 @@ function registerActivosRelevamientoRoutes({
         }
       }
 
+      // Protecciones es_conjunto (mismas reglas que PUT /activos/:id)
+      if (Object.prototype.hasOwnProperty.call(updatePayload, 'es_conjunto')) {
+        if (
+          updatePayload.es_conjunto === false &&
+          anterior.es_conjunto === true
+        ) {
+          const { data: abiertas, error: errComp } = await supabase
+            .from('activo_componentes')
+            .select('id')
+            .eq('conjunto_id', id)
+            .is('fecha_hasta', null)
+            .limit(1)
+          if (errComp) throw errComp
+          if (abiertas && abiertas.length > 0) {
+            return res.status(400).json({
+              ok: false,
+              code: 'CONJUNTO_CON_COMPONENTES',
+              error:
+                'No se puede desmarcar es_conjunto mientras tenga componentes activos',
+            })
+          }
+        }
+        if (
+          updatePayload.es_conjunto === true &&
+          anterior.es_conjunto !== true
+        ) {
+          const { data: mem, error: errMem } = await supabase
+            .from('activo_componentes')
+            .select('id, conjunto_id')
+            .eq('componente_id', id)
+            .is('fecha_hasta', null)
+            .maybeSingle()
+          if (errMem) throw errMem
+          if (mem) {
+            return res.status(400).json({
+              ok: false,
+              code: 'COMPONENTE_EN_CONJUNTO',
+              error:
+                'No se puede marcar como conjunto un activo que pertenece a un manifold',
+              conjunto_id_actual: mem.conjunto_id,
+            })
+          }
+        }
+      }
+
       const { data, error } = await supabase
         .from('activos')
         .update(updatePayload)
@@ -541,6 +612,18 @@ function registerActivosRelevamientoRoutes({
         .select()
         .single()
       if (error) throw error
+
+      const esConjuntoCambio =
+        Boolean(anterior.es_conjunto) !== Boolean(data.es_conjunto)
+
+      const obsAprobacion = [
+        'estado_revision: pendiente → aprobado',
+        esConjuntoCambio
+          ? `es_conjunto: ${Boolean(anterior.es_conjunto)} → ${Boolean(data.es_conjunto)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' | ')
 
       await registrarMovimiento({
         activo_id: data.id,
@@ -553,8 +636,22 @@ function registerActivosRelevamientoRoutes({
         ubicacion_nueva: data.ubicacion,
         asignado_anterior: anterior.asignado_a,
         asignado_nuevo: data.asignado_a,
-        observaciones: `estado_revision: pendiente → aprobado`,
+        observaciones: obsAprobacion,
       })
+
+      if (esConjuntoCambio) {
+        await registrarMovimiento({
+          activo_id: data.id,
+          tipo_movimiento: 'composicion_tipo',
+          descripcion: data.es_conjunto
+            ? 'Marcado como manifold/conjunto al aprobar'
+            : 'Marcado como activo individual al aprobar',
+          usuario,
+          observaciones: `es_conjunto: ${Boolean(anterior.es_conjunto)} → ${Boolean(
+            data.es_conjunto,
+          )}`,
+        })
+      }
 
       res.json({ ok: true, activo: data })
     } catch (error) {
@@ -766,6 +863,7 @@ module.exports = {
   resolveAdjuntoMime,
   maxBytesForMime,
   resolveEsConjuntoPayload,
+  resolveEsConjuntoOptional,
   flutterCreateFlags,
   ADJUNTO_MAX_BYTES_IMAGE,
   ADJUNTO_MAX_BYTES_PDF,

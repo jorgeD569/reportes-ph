@@ -9,6 +9,7 @@ const {
   ubicacionEfectiva,
   resumenActivo,
   resumenComponente,
+  enrichActivosConPertenencia,
 } = require('../activosComposicion')
 
 function test(name, fn) {
@@ -176,6 +177,93 @@ test('búsqueda desde manifold: resumen y count', () => {
   }
   assert.strictEqual(payload.composicion.componentes_actuales_count, 1)
   assert.strictEqual(payload.composicion.resumen[0].componente.id, 15)
+})
+
+test('GET /activos enrich: activo individual libre', () => {
+  const rows = [
+    {
+      id: 10,
+      numero_serie: 'LIBRE-1',
+      descripcion: 'Activo libre',
+      es_conjunto: false,
+      ubicacion: 'Base',
+    },
+  ]
+  const out = enrichActivosConPertenencia(rows, [], new Map())
+  assert.strictEqual(out.length, 1)
+  assert.strictEqual(out[0].es_conjunto, false)
+  assert.strictEqual(out[0].es_componente, false)
+  assert.strictEqual(out[0].pertenencia_actual, null)
+  assert.strictEqual(out[0].numero_serie, 'LIBRE-1')
+})
+
+test('GET /activos enrich: manifold', () => {
+  const rows = [
+    {
+      id: 20,
+      numero_serie: 'MF-001',
+      descripcion: 'Manifold A',
+      es_conjunto: true,
+      ubicacion: 'Pozo X',
+    },
+  ]
+  const out = enrichActivosConPertenencia(rows, [], new Map())
+  assert.strictEqual(out[0].es_conjunto, true)
+  assert.strictEqual(out[0].es_componente, false)
+  assert.strictEqual(out[0].pertenencia_actual, null)
+})
+
+test('GET /activos enrich: componente con manifold actual', () => {
+  const rows = [
+    {
+      id: 15,
+      numero_serie: '1236A1515',
+      descripcion: 'codo',
+      es_conjunto: false,
+      ubicacion: 'Base propia',
+    },
+  ]
+  const relaciones = [
+    {
+      id: 99,
+      conjunto_id: 20,
+      componente_id: 15,
+      posicion: 'Salida lateral',
+      fecha_desde: '2026-07-01T00:00:00Z',
+      fecha_hasta: null,
+    },
+  ]
+  const mans = new Map([
+    [
+      '20',
+      {
+        id: 20,
+        numero_serie: 'MF-001',
+        descripcion: 'Manifold A',
+        ubicacion: 'Pozo X',
+      },
+    ],
+  ])
+  const out = enrichActivosConPertenencia(rows, relaciones, mans)
+  assert.strictEqual(out[0].es_conjunto, false)
+  assert.strictEqual(out[0].es_componente, true)
+  assert.strictEqual(out[0].pertenencia_actual.relacion_id, 99)
+  assert.strictEqual(out[0].pertenencia_actual.conjunto_id, 20)
+  assert.strictEqual(out[0].pertenencia_actual.posicion, 'Salida lateral')
+  assert.strictEqual(out[0].pertenencia_actual.manifold.numero_serie, 'MF-001')
+  assert.strictEqual(out[0].pertenencia_actual.manifold.ubicacion, 'Pozo X')
+})
+
+test('GET /activos enrich: respuesta sin relaciones', () => {
+  const rows = [
+    { id: 1, es_conjunto: false },
+    { id: 2, es_conjunto: true },
+  ]
+  const out = enrichActivosConPertenencia(rows, null, null)
+  assert.strictEqual(out[0].es_componente, false)
+  assert.strictEqual(out[0].pertenencia_actual, null)
+  assert.strictEqual(out[1].es_conjunto, true)
+  assert.strictEqual(out[1].es_componente, false)
 })
 
 if (!process.exitCode) {

@@ -12,6 +12,8 @@
   const {
     registerActivosComposicionRoutes,
     parseEsConjunto,
+    enrichActivosConPertenencia,
+    loadPertenenciasActivasBatch,
   } = require('./activosComposicion')
 
   const BCRYPT_ROUNDS = 10
@@ -1537,7 +1539,14 @@ app.get('/activos', async (req, res) => {
 
     if (error) throw error
 
-    res.json(data)
+    const rows = data || []
+    const { relaciones, manifoldsById } = await loadPertenenciasActivasBatch(
+      supabase,
+      rows.map((a) => a.id),
+    )
+    const enriched = enrichActivosConPertenencia(rows, relaciones, manifoldsById)
+
+    res.json(enriched)
   } catch (error) {
     console.error('Error obteniendo activos:', error)
     res.status(500).json({ error: 'Error obteniendo activos' })

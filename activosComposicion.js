@@ -50,6 +50,89 @@ function resumenComponente(row) {
 }
 
 /**
+ * Pertenencia activa para listado GET /activos (campos reducidos del manifold).
+ */
+function mapPertenenciaActualListado(rel, manifold) {
+  if (!rel) return null
+  return {
+    relacion_id: rel.id,
+    conjunto_id: rel.conjunto_id,
+    posicion: rel.posicion ?? null,
+    fecha_desde: rel.fecha_desde ?? null,
+    manifold: manifold
+      ? {
+          id: manifold.id,
+          numero_serie: manifold.numero_serie ?? null,
+          descripcion: manifold.descripcion ?? null,
+          ubicacion: manifold.ubicacion ?? null,
+        }
+      : null,
+  }
+}
+
+/**
+ * Enriquece una lista de activos con es_componente + pertenencia_actual.
+ * relacionesActivas: filas activo_componentes con fecha_hasta IS NULL.
+ * manifoldsById: Map id→{id, numero_serie, descripcion, ubicacion}
+ * No muta el array de entrada.
+ */
+function enrichActivosConPertenencia(activos, relacionesActivas, manifoldsById) {
+  const byComp = new Map()
+  for (const r of relacionesActivas || []) {
+    byComp.set(String(r.componente_id), r)
+  }
+  const mans = manifoldsById instanceof Map ? manifoldsById : new Map()
+
+  return (activos || []).map((a) => {
+    const rel = byComp.get(String(a.id)) || null
+    const manifold = rel ? mans.get(String(rel.conjunto_id)) || null : null
+    return {
+      ...a,
+      es_conjunto: a.es_conjunto === true,
+      es_componente: Boolean(rel),
+      pertenencia_actual: mapPertenenciaActualListado(rel, manifold),
+    }
+  })
+}
+
+/**
+ * Carga en lote pertenencias activas de una lista de ids de activos.
+ * 1 query relaciones + 1 query manifolds (si hay). Cero N+1.
+ */
+async function loadPertenenciasActivasBatch(supabase, activoIds) {
+  const ids = [...new Set((activoIds || []).map((x) => String(x)))].filter(Boolean)
+  if (ids.length === 0) {
+    return { relaciones: [], manifoldsById: new Map() }
+  }
+
+  const { data: relaciones, error } = await supabase
+    .from('activo_componentes')
+    .select('id, conjunto_id, componente_id, posicion, fecha_desde, fecha_hasta')
+    .in('componente_id', ids)
+    .is('fecha_hasta', null)
+  if (error) throw error
+
+  const rels = relaciones || []
+  const conjuntoIds = [
+    ...new Set(rels.map((r) => String(r.conjunto_id)).filter(Boolean)),
+  ]
+  const manifoldsById = new Map()
+  if (conjuntoIds.length === 0) {
+    return { relaciones: rels, manifoldsById }
+  }
+
+  const { data: mans, error: errMan } = await supabase
+    .from('activos')
+    .select('id, numero_serie, descripcion, ubicacion')
+    .in('id', conjuntoIds)
+  if (errMan) throw errMan
+  for (const m of mans || []) {
+    manifoldsById.set(String(m.id), m)
+  }
+  return { relaciones: rels, manifoldsById }
+}
+
+/**
  * Ubicación efectiva: si pertenece a un manifold abierto, usa la del manifold.
  * No muta la ubicación persistida del componente.
  */
@@ -595,6 +678,9 @@ module.exports = {
   ubicacionEfectiva,
   resumenActivo,
   resumenComponente,
+  enrichActivosConPertenencia,
+  mapPertenenciaActualListado,
+  loadPertenenciasActivasBatch,
   normalizeNumeroSerie,
   normalizeClientUuid,
 }

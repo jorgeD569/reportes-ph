@@ -11,6 +11,7 @@ const {
   resolveAdjuntoMime,
   maxBytesForMime,
   resolveEsConjuntoPayload,
+  resolveEsConjuntoOptional,
   flutterCreateFlags,
   ADJUNTO_MAX_BYTES_IMAGE,
   ADJUNTO_MAX_BYTES_PDF,
@@ -108,7 +109,27 @@ test('es_conjunto inválido ("true", 1, texto) → error 400 conceptual', () => 
   for (const bad of ['true', 1, 'yes', 'manifold', 'false']) {
     const r = resolveEsConjuntoPayload({ es_conjunto: bad })
     assert.strictEqual(r.ok, false, `expected fail for ${JSON.stringify(bad)}`)
+    assert.strictEqual(r.code, 'ES_CONJUNTO_INVALIDO')
   }
+})
+
+test('resolveEsConjuntoOptional: ausente → present=false (conservar valor)', () => {
+  const r = resolveEsConjuntoOptional({})
+  assert.strictEqual(r.ok, true)
+  assert.strictEqual(r.present, false)
+})
+
+test('resolveEsConjuntoOptional: boolean true/false', () => {
+  assert.deepStrictEqual(resolveEsConjuntoOptional({ es_conjunto: true }), {
+    ok: true,
+    present: true,
+    value: true,
+  })
+  assert.deepStrictEqual(resolveEsConjuntoOptional({ es_conjunto: false }), {
+    ok: true,
+    present: true,
+    value: false,
+  })
 })
 
 test('Flutter fuerza activo=false y estado_revision=pendiente', () => {
