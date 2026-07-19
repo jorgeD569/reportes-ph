@@ -124,6 +124,37 @@ function optStr(v) {
 }
 
 /**
+ * es_conjunto desde payload: solo boolean estricto.
+ * Ausente → false. "true"/1/texto → inválido.
+ */
+function resolveEsConjuntoPayload(body) {
+  const b = body || {}
+  if (
+    !Object.prototype.hasOwnProperty.call(b, 'es_conjunto') ||
+    b.es_conjunto === undefined
+  ) {
+    return { ok: true, value: false }
+  }
+  if (typeof b.es_conjunto === 'boolean') {
+    return { ok: true, value: b.es_conjunto }
+  }
+  return {
+    ok: false,
+    error: 'es_conjunto inválido: debe ser boolean true o false',
+  }
+}
+
+/**
+ * Flags forzados en altas desde Flutter (no confiar en el cliente).
+ */
+function flutterCreateFlags() {
+  return {
+    activo: false,
+    estado_revision: 'pendiente',
+  }
+}
+
+/**
  * Resuelve extensión y MIME canónico a partir de mime_type declarado.
  * No acepta nombres de archivo del cliente.
  * @returns {{ ok: true, ext: string, mime: string } | { ok: false, error: string }}
@@ -290,6 +321,17 @@ function registerActivosRelevamientoRoutes({
         })
       }
 
+      // es_conjunto: mismo criterio web y Flutter (solo boolean estricto).
+      const resultadoEsConjunto = resolveEsConjuntoPayload(body)
+      if (!resultadoEsConjunto.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: resultadoEsConjunto.error,
+          code: 'ES_CONJUNTO_INVALIDO',
+        })
+      }
+      const esConjunto = resultadoEsConjunto.value
+
       if (clientUuid) {
         const existente = await findActivoByClientUuid(clientUuid)
         if (existente) {
@@ -316,6 +358,8 @@ function registerActivosRelevamientoRoutes({
         })
       }
 
+      const flutterFlags = esFlutter ? flutterCreateFlags() : null
+
       const insertPayload = {
         descripcion,
         numero_serie: numeroSerie,
@@ -331,8 +375,16 @@ function registerActivosRelevamientoRoutes({
           body.dias_aviso == null || body.dias_aviso === ''
             ? 30
             : Number(body.dias_aviso) || 30,
-        activo: esFlutter ? false : body.activo === false ? false : true,
-        estado_revision: esFlutter ? 'pendiente' : 'aprobado',
+        // Flutter: siempre pendiente/inactivo aunque envíe activo/estado_revision.
+        activo: esFlutter
+          ? flutterFlags.activo
+          : body.activo === false
+            ? false
+            : true,
+        estado_revision: esFlutter
+          ? flutterFlags.estado_revision
+          : 'aprobado',
+        es_conjunto: esConjunto,
       }
 
       if (clientUuid) insertPayload.client_uuid = clientUuid
@@ -713,6 +765,8 @@ module.exports = {
   normalizeNumeroSerie,
   resolveAdjuntoMime,
   maxBytesForMime,
+  resolveEsConjuntoPayload,
+  flutterCreateFlags,
   ADJUNTO_MAX_BYTES_IMAGE,
   ADJUNTO_MAX_BYTES_PDF,
   ADJUNTO_MIME_BY_EXT,

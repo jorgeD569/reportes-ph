@@ -1,0 +1,43 @@
+-- =============================================================================
+-- DOCUMENTACIÓN (NO EJECUTAR): activos compuestos / manifolds
+-- Estructura YA APLICADA en producción. Este archivo solo documenta el contrato.
+-- Fecha: 2026-07-19
+-- =============================================================================
+--
+-- 1) Columna en activos
+-- -----------------------------------------------------------------------------
+-- ALTER TABLE public.activos
+--   ADD COLUMN IF NOT EXISTS es_conjunto boolean NOT NULL DEFAULT false;
+--
+-- COMMENT ON COLUMN public.activos.es_conjunto IS
+--   'true = manifold/conjunto compuesto; false = activo simple o componente.';
+--
+-- 2) Tabla activo_componentes
+-- -----------------------------------------------------------------------------
+-- CREATE TABLE IF NOT EXISTS public.activo_componentes (
+--   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+--   conjunto_id bigint NOT NULL REFERENCES public.activos(id),
+--   componente_id bigint NOT NULL REFERENCES public.activos(id),
+--   posicion text,
+--   observaciones text,
+--   fecha_desde timestamptz NOT NULL DEFAULT now(),
+--   fecha_hasta timestamptz,
+--   client_uuid uuid,
+--   creado_por_user_id uuid REFERENCES public.usuarios_app(id),
+--   created_at timestamptz NOT NULL DEFAULT now()
+-- );
+--
+-- Reglas de negocio esperadas (índices / constraints / triggers en prod):
+-- - Un componente solo puede tener UNA membresía abierta (fecha_hasta IS NULL).
+-- - No hard-delete de relaciones: se cierra con fecha_hasta.
+-- - conjunto.es_conjunto = true; componente.es_conjunto = false.
+-- - No conjuntos dentro de conjuntos.
+-- - client_uuid UNIQUE parcial cuando no es NULL (idempotencia Flutter/API).
+--
+-- Índices típicos (ya existentes en prod; no recrear sin verificar):
+-- - activo_componentes(conjunto_id)
+-- - activo_componentes(componente_id)
+-- - UNIQUE parcial membresía abierta por componente_id WHERE fecha_hasta IS NULL
+-- - UNIQUE parcial client_uuid WHERE client_uuid IS NOT NULL
+--
+-- Este backend NO ejecuta este SQL. Solo lo documenta.

@@ -9,6 +9,10 @@
   const {
     registerActivosRelevamientoRoutes,
   } = require('./activosRelevamiento')
+  const {
+    registerActivosComposicionRoutes,
+    parseEsConjunto,
+  } = require('./activosComposicion')
 
   const BCRYPT_ROUNDS = 10
   const MIN_PASSWORD_LENGTH = 8
@@ -1559,7 +1563,9 @@ app.get('/activos/serie/:numeroSerie', async (req, res) => {
 
     const { data, error } = await supabase
       .from('activos')
-      .select('id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a, activo, estado_revision')
+      .select(
+        'id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a, activo, estado_revision, es_conjunto'
+      )
       .not('numero_serie', 'is', null)
 
     if (error) throw error
@@ -1575,7 +1581,18 @@ app.get('/activos/serie/:numeroSerie', async (req, res) => {
       })
     }
 
-    return res.json({ ok: true, activo })
+    // Enriquecer con composición / pertenencia / ubicación efectiva
+    if (typeof app.locals.enrichActivoSerieLookup === 'function') {
+      const enriched = await app.locals.enrichActivoSerieLookup(activo)
+      return res.json(enriched)
+    }
+
+    return res.json({
+      ok: true,
+      activo: { ...activo, es_conjunto: activo.es_conjunto === true },
+      composicion: null,
+      pertenencia: null,
+    })
   } catch (error) {
     console.error('Error buscando activo por serie:', error)
     res.status(500).json({
@@ -1597,6 +1614,15 @@ registerActivosRelevamientoRoutes({
 })
 
 // =========================
+// ACTIVOS - COMPOSICIÓN / MANIFOLDS
+// =========================
+registerActivosComposicionRoutes({
+  app,
+  supabase,
+  registrarMovimiento,
+})
+
+// =========================
 // ACTIVOS - EDITAR
 // =========================
 const ACTIVO_UPDATE_FIELDS = [
@@ -1613,6 +1639,7 @@ const ACTIVO_UPDATE_FIELDS = [
   'proveedor',
   'dias_aviso',
   'activo',
+  'es_conjunto',
 ]
 
 function pickActivoUpdateFields(body) {
@@ -1627,6 +1654,15 @@ function pickActivoUpdateFields(body) {
       .trim()
       .toUpperCase()
     payload.numero_serie = serie === '' ? null : serie
+  }
+  if (Object.prototype.hasOwnProperty.call(payload, 'es_conjunto')) {
+    const parsed = parseEsConjunto(payload.es_conjunto, null)
+    if (parsed === null) {
+      const err = new Error('es_conjunto inválido (use true/false)')
+      err.statusCode = 400
+      throw err
+    }
+    payload.es_conjunto = parsed
   }
   return payload
 }
@@ -1656,6 +1692,51 @@ app.put('/activos/:id', async (req, res) => {
 
     if (errorAnterior) throw errorAnterior
 
+    // Validaciones es_conjunto
+    if (Object.prototype.hasOwnProperty.call(updatePayload, 'es_conjunto')) {
+      if (
+        updatePayload.es_conjunto === false &&
+        activoAnterior.es_conjunto === true
+      ) {
+        const { data: abiertas, error: errComp } = await supabase
+          .from('activo_componentes')
+          .select('id')
+          .eq('conjunto_id', id)
+          .is('fecha_hasta', null)
+          .limit(1)
+        if (errComp) throw errComp
+        if (abiertas && abiertas.length > 0) {
+          return res.status(400).json({
+            ok: false,
+            code: 'CONJUNTO_CON_COMPONENTES',
+            error:
+              'No se puede desmarcar es_conjunto mientras tenga componentes activos',
+          })
+        }
+      }
+      if (
+        updatePayload.es_conjunto === true &&
+        activoAnterior.es_conjunto !== true
+      ) {
+        const { data: mem, error: errMem } = await supabase
+          .from('activo_componentes')
+          .select('id, conjunto_id')
+          .eq('componente_id', id)
+          .is('fecha_hasta', null)
+          .maybeSingle()
+        if (errMem) throw errMem
+        if (mem) {
+          return res.status(400).json({
+            ok: false,
+            code: 'COMPONENTE_EN_CONJUNTO',
+            error:
+              'No se puede marcar como conjunto un activo que pertenece a un manifold',
+            conjunto_id_actual: mem.conjunto_id,
+          })
+        }
+      }
+    }
+
     // ACTUALIZAR
     const { data, error } = await supabase
       .from('activos')
@@ -1673,24 +1754,34 @@ app.put('/activos/:id', async (req, res) => {
       String(activoAnterior.vencimiento ?? '') !== String(data.vencimiento ?? '')
     const certificadoCambio =
       String(activoAnterior.certificado_url ?? '') !== String(data.certificado_url ?? '')
+    const esConjuntoCambio =
+      Boolean(activoAnterior.es_conjunto) !== Boolean(data.es_conjunto)
 
     const tipoMovimiento =
       tipoMovimientoCustom ||
-      (vencimientoCambio || certificadoCambio
-        ? 'actualización de certificación'
-        : 'edicion')
+      (esConjuntoCambio
+        ? 'composicion_tipo'
+        : vencimientoCambio || certificadoCambio
+          ? 'actualización de certificación'
+          : 'edicion')
 
     const descripcionMovimiento =
       descripcionMovimientoCustom ||
-      (tipoMovimiento === 'actualización de certificación'
-        ? 'Actualización de certificación'
-        : 'Activo editado')
+      (esConjuntoCambio
+        ? data.es_conjunto
+          ? 'Activo marcado como conjunto/manifold'
+          : 'Activo desmarcado como conjunto/manifold'
+        : tipoMovimiento === 'actualización de certificación'
+          ? 'Actualización de certificación'
+          : 'Activo editado')
 
     const observacionesMovimiento =
       observacionesMovimientoCustom ||
-      (tipoMovimiento === 'actualización de certificación'
-        ? 'Se actualizó vencimiento/certificado del activo'
-        : data.observaciones)
+      (esConjuntoCambio
+        ? `es_conjunto: ${Boolean(activoAnterior.es_conjunto)} → ${Boolean(data.es_conjunto)}`
+        : tipoMovimiento === 'actualización de certificación'
+          ? 'Se actualizó vencimiento/certificado del activo'
+          : data.observaciones)
 
     // REGISTRAR MOVIMIENTO
     await registrarMovimiento({
@@ -1720,6 +1811,9 @@ app.put('/activos/:id', async (req, res) => {
     })
 
   } catch (error) {
+    if (error?.statusCode === 400) {
+      return res.status(400).json({ ok: false, error: error.message })
+    }
 
     console.error('Error editando activo:', error)
 
