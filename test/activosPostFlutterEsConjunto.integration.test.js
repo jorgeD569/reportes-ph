@@ -19,6 +19,18 @@ function test(name, fn) {
   })()
 }
 
+/** Catálogo mínimo para resolveCategoriaLegacy('otro') → codigo_legacy. */
+const CATEGORIA_OTRO = {
+  id: '11111111-1111-4111-8111-111111111111',
+  nombre: 'Otro',
+  activo: true,
+  aplicable_a_activos: true,
+  aplicable_a_conjuntos: true,
+  codigo_legacy: 'otro',
+  created_at: '2026-01-01T00:00:00.000Z',
+  updated_at: '2026-01-01T00:00:00.000Z',
+}
+
 function createSupabaseMock(capture) {
   const emptyListBuilder = {
     select() {
@@ -37,8 +49,48 @@ function createSupabaseMock(capture) {
     },
   }
 
+  function categoriasBuilder() {
+    const state = { eqField: null, eqValue: null }
+    const builder = {
+      select() {
+        return builder
+      },
+      eq(field, value) {
+        state.eqField = field
+        state.eqValue = value
+        return builder
+      },
+      maybeSingle: async () => {
+        if (state.eqField === 'codigo_legacy') {
+          const hit =
+            String(state.eqValue) === CATEGORIA_OTRO.codigo_legacy
+              ? CATEGORIA_OTRO
+              : null
+          return { data: hit, error: null }
+        }
+        if (state.eqField === 'id') {
+          const hit =
+            String(state.eqValue) === CATEGORIA_OTRO.id ? CATEGORIA_OTRO : null
+          return { data: hit, error: null }
+        }
+        return { data: null, error: null }
+      },
+      // await supabase.from('activos_categorias').select('*')
+      then(resolve, reject) {
+        return Promise.resolve({ data: [CATEGORIA_OTRO], error: null }).then(
+          resolve,
+          reject,
+        )
+      },
+    }
+    return builder
+  }
+
   return {
     from(table) {
+      if (table === 'activos_categorias') {
+        return categoriasBuilder()
+      }
       if (table !== 'activos') {
         throw new Error('unexpected table ' + table)
       }
@@ -115,7 +167,7 @@ function requestJson(port, method, path, body) {
 
 async function main() {
   await test(
-    'POST /activos origen=flutter es_conjunto=true → insert Supabase correcto',
+    'POST /activos origen=flutter es_conjunto=true → insert pendiente; Flutter fuerza es_conjunto=false',
     async () => {
       const capture = { insertPayload: null }
       const app = express()
@@ -146,7 +198,13 @@ async function main() {
         assert.ok(capture.insertPayload, 'no se capturó insert a Supabase')
         assert.strictEqual(capture.insertPayload.activo, false)
         assert.strictEqual(capture.insertPayload.estado_revision, 'pendiente')
-        assert.strictEqual(capture.insertPayload.es_conjunto, true)
+        // Boolean válido, pero la app no crea conjuntos: se fuerza a false.
+        assert.strictEqual(capture.insertPayload.es_conjunto, false)
+        assert.strictEqual(
+          capture.insertPayload.categoria_id,
+          CATEGORIA_OTRO.id,
+        )
+        assert.strictEqual(capture.insertPayload.categoria, 'otro')
       } finally {
         await new Promise((r) => server.close(r))
       }
