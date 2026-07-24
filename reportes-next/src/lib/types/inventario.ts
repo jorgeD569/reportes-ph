@@ -2,6 +2,9 @@ export type Activo = {
   id: string
   descripcion: string | null
   categoria: string | null
+  /** ID real del catálogo activos_categorias. */
+  categoria_id?: string | null
+  categoria_nombre?: string | null
   numero_serie: string | null
   marca: string | null
   ubicacion: string | null
@@ -16,6 +19,114 @@ export type Activo = {
   creado_por_user_id?: string | null
   codigo_interno?: string | null
   dias_aviso?: number | null
+  /** Manifold / conjunto. GET /activos siempre lo envía como boolean. */
+  es_conjunto: boolean
+  /** true si tiene relación activa (fecha_hasta null). */
+  es_componente: boolean
+  /** Pertenencia activa al listar; null si no pertenece a un manifold. */
+  pertenencia_actual: PertenenciaActual | null
+  /** Ubicación efectiva (propia o del manifold si es componente). */
+  ubicacion_efectiva?: string | null
+}
+
+export type ActivoCategoria = {
+  id: string
+  nombre: string
+  activo: boolean
+  aplicable_a_activos: boolean
+  aplicable_a_conjuntos: boolean
+  codigo_legacy?: string | null
+  created_at?: string
+  updated_at?: string
+  en_uso?: boolean
+  usos_activos?: number
+  usos_conjuntos?: number
+}
+
+/** Resumen embebido en composición / pertenencia. */
+export type ActivoResumen = {
+  id: string | number
+  numero_serie?: string | null
+  descripcion?: string | null
+  categoria?: string | null
+  estado?: string | null
+  ubicacion?: string | null
+  activo?: boolean | null
+  estado_revision?: string | null
+  es_conjunto?: boolean | null
+}
+
+export type ComponenteRelacion = {
+  id: string | number
+  conjunto_id: string | number
+  componente_id: string | number
+  posicion?: string | null
+  observaciones?: string | null
+  fecha_desde?: string | null
+  fecha_hasta?: string | null
+  client_uuid?: string | null
+  componente?: ActivoResumen | null
+  ubicacion_efectiva?: string | null
+}
+
+export type GetActivoComposicionResponse = {
+  ok: boolean
+  activo: Activo
+  componentes_actuales: ComponenteRelacion[]
+  componentes_historial: ComponenteRelacion[]
+  adjuntos: ActivoAdjunto[]
+  error?: string
+}
+
+/** Contrato de pertenencia en GET /activos (y compatible con /pertenencia). */
+export type PertenenciaActual = {
+  relacion_id: number
+  conjunto_id: number
+  posicion: string | null
+  fecha_desde: string
+  manifold: {
+    id: number
+    numero_serie: string
+    descripcion: string
+    ubicacion: string | null
+  }
+}
+
+export type PertenenciaHistorialItem = {
+  relacion_id: string | number
+  conjunto_id: string | number
+  posicion?: string | null
+  observaciones?: string | null
+  fecha_desde?: string | null
+  fecha_hasta?: string | null
+  manifold?: ActivoResumen | null
+}
+
+export type GetActivoPertenenciaResponse = {
+  ok: boolean
+  activo: Activo
+  pertenencia_actual: PertenenciaActual | null
+  historial: PertenenciaHistorialItem[]
+  error?: string
+}
+
+export type PostComponenteResponse = {
+  ok: boolean
+  idempotent?: boolean
+  relacion?: ComponenteRelacion
+  error?: string
+  code?: string
+  conjunto_id_actual?: string | number
+  relacion_id?: string | number
+}
+
+export type PostRetirarComponenteResponse = {
+  ok: boolean
+  idempotent?: boolean
+  relacion?: ComponenteRelacion
+  componente?: Activo
+  mensaje?: string
+  error?: string
 }
 
 export type ActivoAdjunto = {

@@ -137,7 +137,7 @@ function PartesOperativosGestionAuthed({ logout }: { logout: () => void }) {
         right={
           <>
             <Link
-              href={routes.coordinador.inventario.gestion}
+              href={routes.coordinador.gestion.sistema}
               className={COORD_BTN_LINK}
             >
               Volver al panel

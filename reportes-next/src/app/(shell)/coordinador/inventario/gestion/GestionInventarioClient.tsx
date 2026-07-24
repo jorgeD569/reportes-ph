@@ -48,10 +48,10 @@ const TABS: { id: TabId; label: string }[] = [
 
 import { ActualizarActivoTab } from './ActualizarActivoTab'
 import {
-  categoriasActivo,
   PROVEEDOR_DEFAULT,
   proveedoresMock,
 } from './inventarioGestionConstants'
+import { CategoriaSelect } from '@/components/inventario/CategoriaSelect'
 
 type PreviewPayload =
   | { tab: 'activo'; values: Record<string, string>; docTitle: string }
@@ -103,6 +103,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
   const [preview, setPreview] = React.useState<PreviewPayload | null>(null)
 
   const [nuevoActivo, setNuevoActivo] = React.useState({
+    categoria_id: '',
     categoria: '',
     descripcion: '',
     proveedor: PROVEEDOR_DEFAULT,
@@ -114,6 +115,7 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
     vencimiento: '',
     dias_aviso: '',
     observaciones: '',
+    es_conjunto: false,
   })
 
   /** Archivo adjunto (solo cliente). El input file no admite value controlado; el archivo vive en estado. */
@@ -184,6 +186,9 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
       docTitle: 'Documento · Alta de activo',
       values: {
         Categoría: nuevoActivo.categoria,
+        'Tipo de activo': nuevoActivo.es_conjunto
+          ? 'Manifold / conjunto'
+          : 'Individual',
         Descripción: nuevoActivo.descripcion,
         Proveedor:
           nuevoActivo.proveedor === PROVEEDOR_DEFAULT ? '' : nuevoActivo.proveedor,
@@ -267,7 +272,13 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
         right={
           <>
             <Link
-              href={routes.coordinador.inventario.gestion}
+              href={routes.coordinador.inventario.categorias}
+              className={COORD_BTN_SECONDARY}
+            >
+              Administrar categorías
+            </Link>
+            <Link
+              href={routes.coordinador.gestion.sistema}
               className={COORD_BTN_SECONDARY}
             >
               Volver al panel
@@ -324,30 +335,43 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
                 </label>
                 <input className={inputClass()} value={nuevoActivo.descripcion}
                   onChange={(e) => setNuevoActivo((s) => ({ ...s, descripcion: e.target.value }))} />
-              </div><div>
-  <label className={COORD_LABEL}>
-    Categoría
-  </label>
-
-  <select
-    className={inputClass()}
-    value={nuevoActivo.categoria}
-    onChange={(e) =>
-      setNuevoActivo((s) => ({
-        ...s,
-        categoria: e.target.value,
-      }))
-    }
-  >
-    <option value="">Seleccionar categoría</option>
-
-    {categoriasActivo.map((categoria) => (
-      <option key={categoria} value={categoria}>
-        {categoria}
-      </option>
-    ))}
-  </select>
-</div>
+              </div>              <div>
+                <label className={COORD_LABEL}>Categoría</label>
+                <CategoriaSelect
+                  className={inputClass()}
+                  value={nuevoActivo.categoria_id}
+                  aplicable={
+                    nuevoActivo.es_conjunto ? 'conjuntos' : 'activos'
+                  }
+                  onChange={(id, cat) =>
+                    setNuevoActivo((s) => ({
+                      ...s,
+                      categoria_id: id,
+                      categoria: cat?.nombre || '',
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className={COORD_LABEL}>Tipo de activo</label>
+                <select
+                  className={inputClass()}
+                  value={nuevoActivo.es_conjunto ? 'manifold' : 'individual'}
+                  onChange={(e) =>
+                    setNuevoActivo((s) => ({
+                      ...s,
+                      es_conjunto: e.target.value === 'manifold',
+                    }))
+                  }
+                >
+                  <option value="individual">Individual</option>
+                  <option value="manifold">Manifold / conjunto</option>
+                </select>
+                <p className="mt-1 text-xs text-slate-400">
+                  Define si es un conjunto (es_conjunto). La categoría sigue siendo independiente
+                  (p. ej. línea). No uses ubicación para el serial del manifold.
+                </p>
+              </div>
               <div className="md:col-span-2">
                 <label className={COORD_LABEL}>
                   Proveedor

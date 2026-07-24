@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { useTheme } from 'next-themes'
 import { LogoutButton } from '@/components/auth/LogoutButton'
+import { BusquedaRapidaTopbarControl } from '@/components/busqueda-global/BusquedaRapidaGlobalShell'
 import { readAppUsuario } from '@/lib/auth'
 import { cn } from '@/lib/cn'
 
@@ -21,17 +22,17 @@ export function Topbar({
   const [sessionUsuario, setSessionUsuario] = React.useState<string | null>(null)
 
   React.useEffect(() => {
-    setMounted(true)
-    const usuario = readAppUsuario()
     React.startTransition(() => {
+      setMounted(true)
+      const usuario = readAppUsuario()
       setSessionUsuario(usuario?.nombre || usuario?.usuario || null)
     })
   }, [])
 
   return (
     <div className="sticky top-0 z-40 border-b border-border bg-app/80 backdrop-blur">
-      <div className="flex w-full items-center justify-between gap-4 px-4 py-3 md:px-6">
-        <div className="flex items-center gap-3">
+      <div className="flex w-full items-center gap-3 px-4 py-3 md:gap-4 md:px-6">
+        <div className="flex shrink-0 items-center gap-3">
           {onToggleSidebar ? (
             <button
               type="button"
@@ -58,10 +59,14 @@ export function Topbar({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 justify-center">
+          <BusquedaRapidaTopbarControl />
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
           {right}
           {sessionUsuario ? (
-            <span className="hidden max-w-[180px] truncate text-xs font-medium text-muted sm:inline">
+            <span className="hidden max-w-[140px] truncate text-xs font-medium text-muted lg:inline xl:max-w-[180px]">
               {sessionUsuario}
             </span>
           ) : null}
@@ -83,4 +88,3 @@ export function Topbar({
     </div>
   )
 }
-

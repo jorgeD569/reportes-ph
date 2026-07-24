@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { Card, CardBody, CardHeader } from '@/components/ui/Card'
+import { Card, CardBody } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
 import { LoadingState } from '@/components/ui/LoadingState'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -207,4 +207,3 @@ export default function CoordinadorDashboardPage() {
     </div>
   )
 }
-

@@ -9,15 +9,8 @@ export const proveedoresMock = [
 
 export const PROVEEDOR_DEFAULT = proveedoresMock[0]!
 
-export const categoriasActivo = [
-  'Unidad PH',
-  'Sensor WIKA',
-  'Línea / accesorio',
-  'Herramienta',
-  'Seguridad',
-  'Piletas',
-  'Otro',
-]
+/** @deprecated Usar GET /activos-categorias vía CategoriaSelect. */
+export const categoriasActivo: string[] = []
 
 export const estadosActivo = [
   'operativo',

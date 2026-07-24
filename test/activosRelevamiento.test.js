@@ -27,12 +27,11 @@ function test(name, fn) {
   }
 }
 
-test('normaliza categorías UI → enum', () => {
-  assert.strictEqual(normalizeCategoria('Unidad PH'), 'unidad')
-  assert.strictEqual(normalizeCategoria('Sensor WIKA'), 'wika')
-  assert.strictEqual(normalizeCategoria('unidad'), 'unidad')
-  assert.strictEqual(normalizeCategoria('Piletas'), 'otro')
-  assert.strictEqual(normalizeCategoria('xyz'), null)
+test('normalizeCategoria solo recorta texto (catálogo resuelve IDs)', () => {
+  assert.strictEqual(normalizeCategoria('  Unidad  '), 'Unidad')
+  assert.strictEqual(normalizeCategoria(''), null)
+  assert.strictEqual(normalizeCategoria(null), null)
+  assert.strictEqual(normalizeCategoria('Cabezal'), 'Cabezal')
 })
 
 test('normaliza estados con espacios', () => {

@@ -22,6 +22,8 @@ export const routes = {
       `/coordinador/capacitaciones/${encodeURIComponent(id)}`,
     reportePhDetalle: (id: string) => `/coordinador/reportes-ph/${encodeURIComponent(id)}`,
     gestion: {
+      /** Panel hub “Gestión del sistema”. */
+      sistema: '/coordinador/gestion',
       partesOperativos: '/coordinador/gestion/partes-operativos',
       parteOperativo: (id: string) =>
         `/coordinador/gestion/partes-operativos/${encodeURIComponent(id)}`,
@@ -32,9 +34,12 @@ export const routes = {
     inventario: {
       activos: '/coordinador/inventario/activos',
       relevamientosPendientes: '/coordinador/inventario/relevamientos-pendientes',
+      manifolds: '/coordinador/inventario/manifolds',
       consumibles: '/coordinador/inventario/consumibles',
+      /** @deprecated Hub movido a routes.coordinador.gestion.sistema; se conserva para redirect. */
       gestion: '/coordinador/inventario/gestion',
       gestionInventario: '/coordinador/inventario/gestion/inventario',
+      categorias: '/coordinador/inventario/gestion/categorias',
     },
     usuarios: '/coordinador/usuarios',
   },

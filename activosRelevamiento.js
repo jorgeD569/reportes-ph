@@ -3,21 +3,11 @@
  * No modifica el motor de Partes/PH.
  */
 
-const CATEGORIA_MAP = {
-  unidad: 'unidad',
-  wika: 'wika',
-  linea: 'linea',
-  herramienta: 'herramienta',
-  seguridad: 'seguridad',
-  otro: 'otro',
-  'unidad ph': 'unidad',
-  'sensor wika': 'wika',
-  'línea / accesorio': 'linea',
-  'linea / accesorio': 'linea',
-  'línea': 'linea',
-  'linea': 'linea',
-  piletas: 'otro',
-}
+const {
+  resolveCategoriaById,
+  resolveCategoriaLegacy,
+  categoriaTextSnapshot,
+} = require('./activosCategorias')
 
 const ESTADOS_OPERATIVOS = new Set([
   'operativo',
@@ -89,15 +79,37 @@ function isUniqueViolation(error) {
   )
 }
 
+/**
+ * @deprecated Preferir resolveCategoriaIdFromBody. Conservado para tests legacy.
+ * Ya no valida contra un enum hardcodeado: solo normaliza texto.
+ */
 function normalizeCategoria(raw) {
   if (raw == null) return null
-  const key = String(raw).trim().toLowerCase()
-  if (!key) return null
-  if (CATEGORIA_MAP[key]) return CATEGORIA_MAP[key]
-  if (['unidad', 'wika', 'linea', 'herramienta', 'seguridad', 'otro'].includes(key)) {
-    return key
+  const key = String(raw).trim()
+  return key === '' ? null : key
+}
+
+async function resolveCategoriaIdFromBody(supabase, body, opts = {}) {
+  const aplicableA = opts.aplicableA || 'activos'
+  const requireActiva = opts.requireActiva !== false
+  if (body.categoria_id != null && String(body.categoria_id).trim() !== '') {
+    return resolveCategoriaById(supabase, body.categoria_id, {
+      requireActiva,
+      aplicableA,
+    })
   }
-  return null
+  if (body.categoria != null && String(body.categoria).trim() !== '') {
+    // Compat clientes antiguos: buscar por codigo_legacy / nombre. No crea.
+    return resolveCategoriaLegacy(supabase, body.categoria, {
+      requireActiva,
+      aplicableA,
+    })
+  }
+  return {
+    ok: false,
+    code: 'CATEGORIA_REQUERIDA',
+    error: 'categoria_id es obligatorio',
+  }
 }
 
 function normalizeEstadoOperativo(raw) {
@@ -280,7 +292,49 @@ function registerActivosRelevamientoRoutes({
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      res.json({ ok: true, activos: data || [] })
+
+      const rows = data || []
+      const catIds = [
+        ...new Set(
+          rows
+            .map((a) => a.categoria_id)
+            .filter((id) => id != null && String(id).trim() !== ''),
+        ),
+      ]
+      let nombresById = new Map()
+      if (catIds.length) {
+        const { data: cats, error: errCats } = await supabase
+          .from('activos_categorias')
+          .select('id, nombre')
+          .in('id', catIds)
+        if (errCats) throw errCats
+        nombresById = new Map((cats || []).map((c) => [c.id, c.nombre]))
+      }
+
+      const withCats = rows.map((a) => ({
+        ...a,
+        categoria_nombre: a.categoria_id
+          ? nombresById.get(a.categoria_id) || null
+          : null,
+      }))
+
+      const ids = withCats.map((a) => a.id)
+      // Require diferido: evita ciclo con activosComposicion → activosRelevamiento.
+      const {
+        enrichActivosConPertenencia,
+        loadPertenenciasActivasBatch,
+      } = require('./activosComposicion')
+      const { relaciones, manifoldsById } = await loadPertenenciasActivasBatch(
+        supabase,
+        ids,
+      )
+      const enriched = enrichActivosConPertenencia(
+        withCats,
+        relaciones,
+        manifoldsById,
+      )
+
+      res.json({ ok: true, activos: enriched })
     } catch (error) {
       console.error('Error listando activos pendientes:', error)
       res.status(500).json({ ok: false, error: error.message })
@@ -297,7 +351,6 @@ function registerActivosRelevamientoRoutes({
 
       const descripcion = optStr(body.descripcion)
       const numeroSerie = normalizeNumeroSerie(body.numero_serie)
-      const categoria = normalizeCategoria(body.categoria)
       const clientUuid = normalizeClientUuid(body.client_uuid)
       const creadoPorUserId = normalizeClientUuid(body.creado_por_user_id)
       const usuarioMov =
@@ -315,13 +368,35 @@ function registerActivosRelevamientoRoutes({
           .status(400)
           .json({ ok: false, error: 'El número de serie es obligatorio' })
       }
-      if (!categoria) {
+
+      // Flutter siempre releva un activo (nunca crea conjuntos desde la app).
+      const resultadoEsConjunto = resolveEsConjuntoPayload(body)
+      if (!resultadoEsConjunto.ok) {
         return res.status(400).json({
           ok: false,
-          error:
-            'Categoría inválida. Use: unidad, wika, linea, herramienta, seguridad, otro',
+          error: resultadoEsConjunto.error,
+          code: 'ES_CONJUNTO_INVALIDO',
         })
       }
+      let esConjunto = resultadoEsConjunto.value
+      if (esFlutter) {
+        esConjunto = false
+      }
+
+      const catResolved = await resolveCategoriaIdFromBody(supabase, body, {
+        aplicableA: esConjunto ? 'conjuntos' : 'activos',
+        requireActiva: true,
+      })
+      if (!catResolved.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: catResolved.error,
+          code: catResolved.code || 'CATEGORIA_INVALIDA',
+        })
+      }
+      const categoriaRow = catResolved.categoria
+      const categoria = categoriaTextSnapshot(categoriaRow)
+      const categoriaId = categoriaRow.id
 
       const estado = normalizeEstadoOperativo(body.estado)
       if (!estado) {
@@ -331,17 +406,6 @@ function registerActivosRelevamientoRoutes({
             'Estado inválido. Use: operativo, fuera de servicio, en reparacion, vencido, baja',
         })
       }
-
-      // es_conjunto: mismo criterio web y Flutter (solo boolean estricto).
-      const resultadoEsConjunto = resolveEsConjuntoPayload(body)
-      if (!resultadoEsConjunto.ok) {
-        return res.status(400).json({
-          ok: false,
-          error: resultadoEsConjunto.error,
-          code: 'ES_CONJUNTO_INVALIDO',
-        })
-      }
-      const esConjunto = resultadoEsConjunto.value
 
       if (clientUuid) {
         const existente = await findActivoByClientUuid(clientUuid)
@@ -375,6 +439,7 @@ function registerActivosRelevamientoRoutes({
         descripcion,
         numero_serie: numeroSerie,
         categoria,
+        categoria_id: categoriaId,
         estado,
         marca: optStr(body.marca),
         ubicacion: optStr(body.ubicacion),
@@ -490,6 +555,7 @@ function registerActivosRelevamientoRoutes({
       const allow = [
         'descripcion',
         'categoria',
+        'categoria_id',
         'numero_serie',
         'marca',
         'estado',
@@ -500,9 +566,14 @@ function registerActivosRelevamientoRoutes({
         'codigo_interno',
         'dias_aviso',
         'es_conjunto',
+        'conjunto_id',
       ]
       for (const key of allow) {
         if (Object.prototype.hasOwnProperty.call(patch, key)) {
+          if (key === 'conjunto_id') {
+            // Se procesa después del update del activo.
+            continue
+          }
           if (key === 'es_conjunto') {
             const parsed = resolveEsConjuntoOptional({ es_conjunto: patch.es_conjunto })
             if (!parsed.ok) {
@@ -517,14 +588,8 @@ function registerActivosRelevamientoRoutes({
             }
             continue
           }
-          if (key === 'categoria') {
-            const cat = normalizeCategoria(patch[key])
-            if (!cat) {
-              return res
-                .status(400)
-                .json({ ok: false, error: 'Categoría inválida en patch' })
-            }
-            updatePayload.categoria = cat
+          if (key === 'categoria_id' || key === 'categoria') {
+            continue
           } else if (key === 'estado') {
             const est = normalizeEstadoOperativo(patch[key])
             if (!est) {
@@ -547,6 +612,36 @@ function registerActivosRelevamientoRoutes({
             updatePayload[key] = optStr(patch[key])
           }
         }
+      }
+
+      if (
+        Object.prototype.hasOwnProperty.call(patch, 'categoria_id') ||
+        Object.prototype.hasOwnProperty.call(patch, 'categoria')
+      ) {
+        const esConjPatch =
+          updatePayload.es_conjunto === true ||
+          (updatePayload.es_conjunto === undefined &&
+            anterior.es_conjunto === true)
+        const catResolved = await resolveCategoriaIdFromBody(
+          supabase,
+          {
+            categoria_id: patch.categoria_id,
+            categoria: patch.categoria,
+          },
+          {
+            aplicableA: esConjPatch ? 'conjuntos' : 'activos',
+            requireActiva: true,
+          },
+        )
+        if (!catResolved.ok) {
+          return res.status(400).json({
+            ok: false,
+            error: catResolved.error,
+            code: catResolved.code || 'CATEGORIA_INVALIDA',
+          })
+        }
+        updatePayload.categoria_id = catResolved.categoria.id
+        updatePayload.categoria = categoriaTextSnapshot(catResolved.categoria)
       }
 
       if (updatePayload.numero_serie) {
@@ -653,7 +748,85 @@ function registerActivosRelevamientoRoutes({
         })
       }
 
-      res.json({ ok: true, activo: data })
+      // Corregir pertenencia a conjunto (IDs reales via activo_componentes).
+      if (Object.prototype.hasOwnProperty.call(patch, 'conjunto_id')) {
+        const rawConjunto = patch.conjunto_id
+        const { data: memActual, error: errMem } = await supabase
+          .from('activo_componentes')
+          .select('id, conjunto_id')
+          .eq('componente_id', id)
+          .is('fecha_hasta', null)
+          .maybeSingle()
+        if (errMem) throw errMem
+
+        if (rawConjunto == null || String(rawConjunto).trim() === '') {
+          if (memActual) {
+            const { error: errRet } = await supabase
+              .from('activo_componentes')
+              .update({ fecha_hasta: new Date().toISOString() })
+              .eq('id', memActual.id)
+            if (errRet) throw errRet
+          }
+        } else {
+          const conjuntoId = String(rawConjunto).trim()
+          const { data: conjunto, error: errConj } = await supabase
+            .from('activos')
+            .select('id, es_conjunto, activo, estado_revision')
+            .eq('id', conjuntoId)
+            .maybeSingle()
+          if (errConj) throw errConj
+          if (!conjunto || conjunto.es_conjunto !== true) {
+            return res.status(400).json({
+              ok: false,
+              code: 'CONJUNTO_INVALIDO',
+              error: 'El conjunto indicado no existe o no es un conjunto',
+            })
+          }
+          if (String(conjunto.id) === String(id)) {
+            return res.status(400).json({
+              ok: false,
+              error: 'Un activo no puede pertenecer a sí mismo',
+            })
+          }
+          if (data.es_conjunto === true) {
+            return res.status(400).json({
+              ok: false,
+              error: 'Un conjunto no puede pertenecer a otro conjunto',
+            })
+          }
+
+          if (memActual && String(memActual.conjunto_id) !== conjuntoId) {
+            const { error: errRet } = await supabase
+              .from('activo_componentes')
+              .update({ fecha_hasta: new Date().toISOString() })
+              .eq('id', memActual.id)
+            if (errRet) throw errRet
+          }
+
+          if (!memActual || String(memActual.conjunto_id) !== conjuntoId) {
+            const { error: errIns } = await supabase
+              .from('activo_componentes')
+              .insert([
+                {
+                  conjunto_id: conjunto.id,
+                  componente_id: id,
+                  observaciones: 'Asignado al aprobar relevamiento',
+                  creado_por_user_id: null,
+                },
+              ])
+            if (errIns) throw errIns
+          }
+        }
+      }
+
+      const { data: finalActivo, error: errFinal } = await supabase
+        .from('activos')
+        .select('*')
+        .eq('id', id)
+        .single()
+      if (errFinal) throw errFinal
+
+      res.json({ ok: true, activo: finalActivo })
     } catch (error) {
       console.error('Error aprobando activo:', error)
       res.status(500).json({ ok: false, error: error.message })
@@ -865,8 +1038,8 @@ module.exports = {
   resolveEsConjuntoPayload,
   resolveEsConjuntoOptional,
   flutterCreateFlags,
+  resolveCategoriaIdFromBody,
   ADJUNTO_MAX_BYTES_IMAGE,
   ADJUNTO_MAX_BYTES_PDF,
   ADJUNTO_MIME_BY_EXT,
-  CATEGORIA_MAP,
 }

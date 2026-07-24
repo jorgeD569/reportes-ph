@@ -1,5 +1,7 @@
-import { GestionDashboardClient } from './GestionDashboardClient'
+import { redirect } from 'next/navigation'
+import { routes } from '@/lib/constants/routes'
 
-export default function CoordinadorInventarioGestionPage() {
-  return <GestionDashboardClient />
+/** Conserva enlaces antiguos al hub administrativo. */
+export default function CoordinadorInventarioGestionRedirectPage() {
+  redirect(routes.coordinador.gestion.sistema)
 }

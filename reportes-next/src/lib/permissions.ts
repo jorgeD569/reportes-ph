@@ -8,13 +8,19 @@ export type NavItemDef = {
   roles: readonly AppRol[]
 }
 
+export type NavGroupDef = {
+  label: string
+  roles: readonly AppRol[]
+  items: readonly NavItemDef[]
+}
+
 /** Rutas de administración de usuarios reservadas para admin (futuro). */
 const ADMIN_ONLY_COORDINADOR_PREFIXES = ['/coordinador/usuarios'] as const
 
-/** Rutas del panel de gestión administrativa (inventario, partes operativos en modo edición, etc.). */
+/** Rutas del panel de gestión administrativa (hub, módulos de edición, etc.). */
 const GESTION_PATH_PREFIXES = [
+  '/coordinador/gestion',
   '/coordinador/inventario/gestion',
-  '/coordinador/gestion/',
   '/coordinador/configuracion/',
 ] as const
 
@@ -44,6 +50,7 @@ export const NAV_DASHBOARD: NavItemDef[] = [
   },
 ]
 
+/** Ítems planos de Coordinador (fuera de Inventario). */
 export const NAV_COORDINADOR: NavItemDef[] = [
   {
     label: 'Reportes PH',
@@ -61,23 +68,8 @@ export const NAV_COORDINADOR: NavItemDef[] = [
     roles: ['coordinador', 'admin'],
   },
   {
-    label: 'Activos',
-    href: routes.coordinador.inventario.activos,
-    roles: ['coordinador', 'admin'],
-  },
-  {
-    label: 'Relevamientos',
-    href: routes.coordinador.inventario.relevamientosPendientes,
-    roles: ['coordinador', 'admin'],
-  },
-  {
-    label: 'Consumibles',
-    href: routes.coordinador.inventario.consumibles,
-    roles: ['coordinador', 'admin'],
-  },
-  {
-    label: 'Gestión',
-    href: routes.coordinador.inventario.gestion,
+    label: 'Gestión del sistema',
+    href: routes.coordinador.gestion.sistema,
     roles: ['coordinador', 'admin'],
   },
   {
@@ -86,6 +78,34 @@ export const NAV_COORDINADOR: NavItemDef[] = [
     roles: ['admin'],
   },
 ]
+
+/** Grupo Inventario en sidebar. */
+export const NAV_INVENTARIO: NavGroupDef = {
+  label: 'Inventario',
+  roles: ['coordinador', 'admin'],
+  items: [
+    {
+      label: 'Consultar activos',
+      href: routes.coordinador.inventario.activos,
+      roles: ['coordinador', 'admin'],
+    },
+    {
+      label: 'Conjuntos de activos',
+      href: routes.coordinador.inventario.manifolds,
+      roles: ['coordinador', 'admin'],
+    },
+    {
+      label: 'Relevamientos pendientes',
+      href: routes.coordinador.inventario.relevamientosPendientes,
+      roles: ['coordinador', 'admin'],
+    },
+    {
+      label: 'Consumibles',
+      href: routes.coordinador.inventario.consumibles,
+      roles: ['coordinador', 'admin'],
+    },
+  ],
+}
 
 export function normalizeRol(rol: string | undefined | null): AppRol | null {
   const normalized = rol?.trim().toLowerCase()
@@ -182,3 +202,15 @@ export function filterNavItemsByRol(
   if (!role) return []
   return items.filter((item) => item.roles.includes(role))
 }
+
+export function filterNavGroupByRol(
+  group: NavGroupDef,
+  rol: string | null | undefined
+): NavGroupDef | null {
+  const role = normalizeRol(rol ?? '')
+  if (!role || !group.roles.includes(role)) return null
+  const items = filterNavItemsByRol(group.items, rol)
+  if (items.length === 0) return null
+  return { ...group, items }
+}
+

@@ -378,7 +378,7 @@ function ParteOperativoGestionDetalleAuthed({ logout }: { logout: () => void }) 
               Volver al listado
             </Link>
             <Link
-              href={routes.coordinador.inventario.gestion}
+              href={routes.coordinador.gestion.sistema}
               className={COORD_BTN_LINK}
             >
               Panel de gestión

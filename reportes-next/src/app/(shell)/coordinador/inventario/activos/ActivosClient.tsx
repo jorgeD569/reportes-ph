@@ -1,7 +1,9 @@
 'use client'
 
 import * as React from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { ActivoDetalleModal } from '@/components/coordinador/inventario/ActivoDetalleModal'
+import { ActivoTipoBadge } from '@/components/coordinador/inventario/ActivoTipoBadge'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { DataField } from '@/components/ui/DataField'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -12,6 +14,7 @@ import { ModernTable, Td, Th } from '@/components/ui/ModernTable'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
 import { get } from '@/lib/api'
+import { labelEstadoOperativo } from '@/lib/inventario/labels'
 import {
   COORD_BTN_SECONDARY,
   COORD_DROPDOWN_ITEM,
@@ -145,8 +148,11 @@ function sortMovimientosByFechaDesc(list: MovimientoActivoApi[]): MovimientoActi
 
 export function ActivosClient() {
   const params = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const categoria = params.get('categoria')
   const filtro = params.get('filtro') // vencidos | criticos | vencimientos | fuera_servicio | null
+  const activoQuery = params.get('activo')
 
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -161,6 +167,24 @@ export function ActivosClient() {
   const [historialLoading, setHistorialLoading] = React.useState(false)
   const [historialError, setHistorialError] = React.useState<string | null>(null)
   const [historialMovimientos, setHistorialMovimientos] = React.useState<MovimientoActivoApi[]>([])
+
+  const [detalleManualId, setDetalleManualId] = React.useState<string | null>(null)
+  const detalleActivoId =
+    detalleManualId ?? (activoQuery ? String(activoQuery) : null)
+
+  function openDetalle(id: string) {
+    setDetalleManualId(String(id))
+  }
+
+  function closeDetalle() {
+    setDetalleManualId(null)
+    if (activoQuery) {
+      const next = new URLSearchParams(params.toString())
+      next.delete('activo')
+      const qs = next.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname)
+    }
+  }
 
   React.useEffect(() => {
     let cancelled = false
@@ -466,13 +490,14 @@ export function ActivosClient() {
                     </Th>
                   )
                 })}
+                <Th>Tipo</Th>
                 <Th>Acciones</Th>
               </tr>
             </thead>
             <tbody>
               {!loading && !error && filtered.length === 0 ? (
                 <tr>
-                  <Td colSpan={9}>
+                  <Td colSpan={10}>
                     <EmptyState
                       title="No hay activos para mostrar"
                       description="Probá cambiar filtros o búsqueda."
@@ -502,13 +527,29 @@ export function ActivosClient() {
                     const ubicacion = columnDisplayValue(a, 'ubicacion')
                     const asignado = columnDisplayValue(a, 'asignado_a')
                     const vencTxt = columnDisplayValue(a, 'vencimiento')
-                    const estadoTxt = columnDisplayValue(a, 'estado')
+                    const estadoTxt = labelEstadoOperativo(a.estado)
 
                     return (
                       <tr key={a.id}>
-                        <Td className="font-semibold">{descripcion}</Td>
+                        <Td className="font-semibold">
+                          <button
+                            type="button"
+                            className="cursor-pointer text-left font-semibold text-sky-300 underline-offset-2 hover:underline"
+                            onClick={() => openDetalle(String(a.id))}
+                          >
+                            {descripcion}
+                          </button>
+                        </Td>
                         <Td>{categoriaCell}</Td>
-                        <Td>{serie}</Td>
+                        <Td>
+                          <button
+                            type="button"
+                            className="cursor-pointer text-left font-medium text-sky-300 underline-offset-2 hover:underline"
+                            onClick={() => openDetalle(String(a.id))}
+                          >
+                            {serie}
+                          </button>
+                        </Td>
                         <Td>{marca}</Td>
                         <Td>{ubicacion}</Td>
                         <Td>{asignado}</Td>
@@ -522,6 +563,12 @@ export function ActivosClient() {
                         </Td>
                         <Td>
                           <StatusBadge variant="neutral">{estadoTxt}</StatusBadge>
+                        </Td>
+                        <Td>
+                          <ActivoTipoBadge
+                            esConjunto={a.es_conjunto === true}
+                            esComponente={a.es_componente === true}
+                          />
                         </Td>
                         <Td>
                           <button
@@ -540,6 +587,18 @@ export function ActivosClient() {
           </ModernTable>
         </CardBody>
       </Card>
+
+      <ActivoDetalleModal
+        open={detalleActivoId !== null}
+        activoId={detalleActivoId}
+        initialActivo={
+          detalleActivoId
+            ? items.find((a) => String(a.id) === detalleActivoId) ?? null
+            : null
+        }
+        onClose={closeDetalle}
+        onSelectActivoId={openDetalle}
+      />
 
       <Modal
         open={historialActivo !== null}

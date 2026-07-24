@@ -1,7 +1,8 @@
 /** Estética corporativa oscura del panel Coordinador (referencia: /coordinador/usuarios). */
 
+/** Márgenes laterales alineados con main; padding vertical completo del contenido. */
 export const COORD_PAGE_SHELL =
-  '-mx-4 -my-6 min-h-[calc(100vh-4rem)] w-full bg-[linear-gradient(145deg,#071825_0%,#0c2c40_42%,#0f3d5c_100%)] px-4 py-6 md:-mx-6 md:px-6'
+  '-mx-4 min-h-[calc(100vh-8rem)] w-full bg-[linear-gradient(145deg,#071825_0%,#0c2c40_42%,#0f3d5c_100%)] px-4 py-6 md:-mx-6 md:px-6'
 
 export const COORD_PAGE_INNER = 'w-full min-w-0 space-y-5 md:space-y-6'
 

@@ -21,10 +21,10 @@ import { formatFechaAR, toInputDate } from '@/lib/date'
 import { vencimientoState } from '@/lib/vencimientos'
 import type { Activo } from '@/lib/types/inventario'
 import {
-  categoriasActivo,
   estadosActivo,
   proveedoresMock,
 } from './inventarioGestionConstants'
+import { CategoriaSelect } from '@/components/inventario/CategoriaSelect'
 
 type PutActivoResponse = {
   ok: boolean
@@ -34,6 +34,7 @@ type PutActivoResponse = {
 
 export type EditActivoForm = {
   descripcion: string
+  categoria_id: string
   categoria: string
   proveedor: string
   numero_serie: string
@@ -44,10 +45,12 @@ export type EditActivoForm = {
   vencimiento: string
   certificado_url: string
   observaciones: string
+  es_conjunto: boolean
 }
 
 const EMPTY_EDIT_FORM: EditActivoForm = {
   descripcion: '',
+  categoria_id: '',
   categoria: '',
   proveedor: '',
   numero_serie: '',
@@ -58,6 +61,7 @@ const EMPTY_EDIT_FORM: EditActivoForm = {
   vencimiento: '',
   certificado_url: '',
   observaciones: '',
+  es_conjunto: false,
 }
 
 function inputClass() {
@@ -89,7 +93,8 @@ function readProveedor(activo: Activo): string {
 function activoToEditForm(activo: Activo): EditActivoForm {
   return {
     descripcion: activo.descripcion ?? '',
-    categoria: activo.categoria ?? '',
+    categoria_id: activo.categoria_id ?? '',
+    categoria: activo.categoria_nombre || activo.categoria || '',
     proveedor: readProveedor(activo),
     numero_serie: activo.numero_serie ?? '',
     marca: activo.marca ?? '',
@@ -99,6 +104,7 @@ function activoToEditForm(activo: Activo): EditActivoForm {
     vencimiento: toInputDate(activo.vencimiento),
     certificado_url: activo.certificado_url ?? '',
     observaciones: activo.observaciones ?? '',
+    es_conjunto: activo.es_conjunto === true,
   }
 }
 
@@ -159,6 +165,7 @@ export function ActualizarActivoTab() {
   }, [])
 
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga inicial de activos
     void loadActivos()
   }, [loadActivos])
 
@@ -193,11 +200,6 @@ export function ActualizarActivoTab() {
       return hay.includes(q)
     })
   }, [activos, busqueda])
-
-  const categoriaOptions = React.useMemo(
-    () => optionsWithCurrent(categoriasActivo, editForm.categoria),
-    [editForm.categoria]
-  )
 
   const estadoOptions = React.useMemo(
     () => optionsWithCurrent(estadosActivo, editForm.estado),
@@ -264,7 +266,7 @@ export function ActualizarActivoTab() {
 
     const payload: Record<string, unknown> = {
       descripcion: editForm.descripcion.trim(),
-      categoria: editForm.categoria.trim() || null,
+      categoria_id: editForm.categoria_id.trim() || null,
       numero_serie: editForm.numero_serie.trim() || null,
       marca: editForm.marca.trim() || null,
       estado: editForm.estado.trim() || 'operativo',
@@ -273,6 +275,7 @@ export function ActualizarActivoTab() {
       vencimiento: editForm.vencimiento.trim() || null,
       certificado_url: editForm.certificado_url.trim() || null,
       observaciones: editForm.observaciones.trim() || null,
+      es_conjunto: editForm.es_conjunto === true,
       usuario: usuarioMov,
       tipo_movimiento: 'actualización de certificación',
       descripcion_movimiento: 'Actualización de certificación',
@@ -464,21 +467,43 @@ export function ActualizarActivoTab() {
                   <label className={COORD_LABEL} htmlFor="edit-categoria">
                     Categoría
                   </label>
-                  <select
-                    id="edit-categoria"
+                  <CategoriaSelect
                     className={inputClass()}
-                    value={editForm.categoria}
+                    value={editForm.categoria_id}
+                    includeInactiveId={editForm.categoria_id || null}
+                    aplicable={
+                      editForm.es_conjunto ? 'conjuntos' : 'activos'
+                    }
+                    onChange={(id, cat) =>
+                      setEditForm((prev) => ({
+                        ...prev,
+                        categoria_id: id,
+                        categoria: cat?.nombre || '',
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={COORD_LABEL} htmlFor="edit-tipo-activo">
+                    Tipo de activo
+                  </label>
+                  <select
+                    id="edit-tipo-activo"
+                    className={inputClass()}
+                    value={editForm.es_conjunto ? 'manifold' : 'individual'}
                     onChange={(e) =>
-                      setEditForm((prev) => ({ ...prev, categoria: e.target.value }))
+                      setEditForm((prev) => ({
+                        ...prev,
+                        es_conjunto: e.target.value === 'manifold',
+                      }))
                     }
                   >
-                    <option value="">Seleccionar categoría</option>
-                    {categoriaOptions.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
+                    <option value="individual">Individual</option>
+                    <option value="manifold">Manifold / conjunto</option>
                   </select>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Independiente de la categoría. No uses ubicación para el serial del manifold.
+                  </p>
                 </div>
                 <div className="md:col-span-2">
                   <label className={COORD_LABEL} htmlFor="edit-proveedor">

@@ -742,7 +742,7 @@ function ContratosGestionAuthed({ logout }: { logout: () => void }) {
         subtitle="Operadoras, contratos e ítems certificables por contrato."
         right={
           <>
-            <Link href={routes.coordinador.inventario.gestion} className={COORD_BTN_LINK}>
+            <Link href={routes.coordinador.gestion.sistema} className={COORD_BTN_LINK}>
               Volver al panel
             </Link>
             <StatusBadge variant="warning">Acceso restringido</StatusBadge>

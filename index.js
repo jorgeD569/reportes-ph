@@ -10,11 +10,20 @@
     registerActivosRelevamientoRoutes,
   } = require('./activosRelevamiento')
   const {
+    registerActivosCategoriasRoutes,
+    resolveCategoriaById,
+    resolveCategoriaLegacy,
+    categoriaTextSnapshot,
+  } = require('./activosCategorias')
+  const {
     registerActivosComposicionRoutes,
     parseEsConjunto,
     enrichActivosConPertenencia,
     loadPertenenciasActivasBatch,
   } = require('./activosComposicion')
+  const {
+    registerBusquedaGlobalRoutes,
+  } = require('./busquedaGlobal')
 
   const BCRYPT_ROUNDS = 10
   const MIN_PASSWORD_LENGTH = 8
@@ -1622,6 +1631,11 @@ registerActivosRelevamientoRoutes({
   base64ToBuffer,
 })
 
+registerActivosCategoriasRoutes({
+  app,
+  supabase,
+})
+
 // =========================
 // ACTIVOS - COMPOSICIÓN / MANIFOLDS
 // =========================
@@ -1632,11 +1646,21 @@ registerActivosComposicionRoutes({
 })
 
 // =========================
+// BÚSQUEDA GLOBAL (solo lectura)
+// =========================
+registerBusquedaGlobalRoutes({
+  app,
+  supabase,
+  buildPublicPdfUrl: buildParteOperativoPdfUrl,
+})
+
+// =========================
 // ACTIVOS - EDITAR
 // =========================
 const ACTIVO_UPDATE_FIELDS = [
   'descripcion',
   'categoria',
+  'categoria_id',
   'numero_serie',
   'marca',
   'estado',
@@ -1700,6 +1724,49 @@ app.put('/activos/:id', async (req, res) => {
       .single()
 
     if (errorAnterior) throw errorAnterior
+
+    // Resolver categoria_id (catálogo). No inventa categorías.
+    if (
+      Object.prototype.hasOwnProperty.call(updatePayload, 'categoria_id') ||
+      Object.prototype.hasOwnProperty.call(updatePayload, 'categoria')
+    ) {
+      const esConjTarget =
+        updatePayload.es_conjunto === true ||
+        (updatePayload.es_conjunto === undefined &&
+          activoAnterior.es_conjunto === true)
+      let resolved
+      if (
+        updatePayload.categoria_id != null &&
+        String(updatePayload.categoria_id).trim() !== ''
+      ) {
+        resolved = await resolveCategoriaById(
+          supabase,
+          updatePayload.categoria_id,
+          {
+            requireActiva: true,
+            aplicableA: esConjTarget ? 'conjuntos' : 'activos',
+          },
+        )
+      } else {
+        resolved = await resolveCategoriaLegacy(
+          supabase,
+          updatePayload.categoria,
+          {
+            requireActiva: true,
+            aplicableA: esConjTarget ? 'conjuntos' : 'activos',
+          },
+        )
+      }
+      if (!resolved.ok) {
+        return res.status(400).json({
+          ok: false,
+          error: resolved.error,
+          code: resolved.code || 'CATEGORIA_INVALIDA',
+        })
+      }
+      updatePayload.categoria_id = resolved.categoria.id
+      updatePayload.categoria = categoriaTextSnapshot(resolved.categoria)
+    }
 
     // Validaciones es_conjunto
     if (Object.prototype.hasOwnProperty.call(updatePayload, 'es_conjunto')) {

@@ -13,6 +13,7 @@ export function Modal({
   open,
   onClose,
   title,
+  subtitle,
   children,
   footer,
   className,
@@ -25,6 +26,7 @@ export function Modal({
   open: boolean
   onClose: () => void
   title?: string
+  subtitle?: React.ReactNode
   children: React.ReactNode
   footer?: React.ReactNode
   className?: string
@@ -32,81 +34,147 @@ export function Modal({
   footerClassName?: string
   headerClassName?: string
   maxWidthClassName?: string
-  /** Layout compacto: max-height 85vh, body scrollable y footer fijo. */
+  /** Layout viewport: header/footer fijos, scroll solo en body. */
   compact?: boolean
 }) {
   const isCoordinador = useCoordinadorTheme()
+  const panelRef = React.useRef<HTMLDivElement>(null)
+  const bodyRef = React.useRef<HTMLDivElement>(null)
+  const previouslyFocused = React.useRef<HTMLElement | null>(null)
 
   React.useEffect(() => {
     if (!open) return
+    previouslyFocused.current = document.activeElement as HTMLElement | null
+
+    // Siempre abrir mostrando el encabezado (no conservar scroll previo).
+    if (bodyRef.current) bodyRef.current.scrollTop = 0
+
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+        return
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return
+      const focusable = panelRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      )
+      if (focusable.length === 0) return
+      const first = focusable[0]!
+      const last = focusable[focusable.length - 1]!
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
     }
+
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    requestAnimationFrame(() => {
+      if (bodyRef.current) bodyRef.current.scrollTop = 0
+      const closeBtn = panelRef.current?.querySelector<HTMLElement>(
+        '[data-modal-close]',
+      )
+      ;(closeBtn || panelRef.current)?.focus()
+    })
+
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      document.body.style.overflow = prevOverflow
+      previouslyFocused.current?.focus?.()
+    }
   }, [open, onClose])
 
   if (!open) return null
 
-  const useCoordDefaults = isCoordinador && !className
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden p-4">
       <button
         type="button"
-        aria-label="Cerrar"
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        aria-label="Cerrar fondo"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
       <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+        tabIndex={-1}
         className={cn(
-          'relative flex w-full flex-col overflow-hidden rounded-2xl border shadow-[var(--shadow-app)]',
-          useCoordDefaults
+          'relative flex w-full flex-col overflow-hidden rounded-2xl border shadow-[var(--shadow-app)] outline-none',
+          isCoordinador
             ? COORD_MODAL
             : 'border-border bg-surface',
-          compact && 'max-h-[85vh]',
+          compact && 'max-h-[calc(100vh-32px)]',
           maxWidthClassName,
-          className
+          className,
         )}
       >
         {title ? (
           <div
             className={cn(
-              'flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3',
-              useCoordDefaults ? COORD_MODAL_HEADER : 'border-border',
-              headerClassName
+              'sticky top-0 z-10 flex shrink-0 items-start justify-between gap-3 border-b px-4 py-3 sm:px-5',
+              isCoordinador ? COORD_MODAL_HEADER : 'border-border',
+              headerClassName,
             )}
           >
-            <div className="text-sm font-semibold">{title}</div>
+            <div className="min-w-0 flex-1">
+              <div
+                id="modal-title"
+                className="text-base font-semibold leading-tight"
+              >
+                {title}
+              </div>
+              {subtitle ? (
+                <div className="mt-1 truncate text-sm text-sky-200/70">
+                  {subtitle}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
+              data-modal-close
               onClick={onClose}
+              aria-label="Cerrar"
               className={cn(
-                'rounded-lg px-2 py-1 text-sm hover:bg-white/10',
-                useCoordDefaults ? 'text-sky-200/70' : 'text-muted hover:bg-surface-2 hover:text-app'
+                'shrink-0 rounded-lg px-2.5 py-1 text-xl leading-none hover:bg-white/10',
+                isCoordinador
+                  ? 'text-sky-200/80'
+                  : 'text-muted hover:bg-surface-2 hover:text-app',
               )}
             >
               ×
             </button>
           </div>
         ) : null}
+
         <div
+          ref={bodyRef}
           className={cn(
-            compact ? 'min-h-0 flex-1 overflow-y-auto' : '',
-            'px-4 py-3',
-            bodyClassName
+            compact
+              ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
+              : '',
+            'px-4 py-3 sm:px-5',
+            bodyClassName,
           )}
         >
           {children}
         </div>
+
         {footer ? (
           <div
             className={cn(
-              'shrink-0 border-t px-4 py-3',
-              useCoordDefaults
+              'sticky bottom-0 z-10 shrink-0 border-t px-4 py-3 sm:px-5',
+              isCoordinador
                 ? COORD_MODAL_FOOTER
                 : 'border-border bg-surface-2',
-              footerClassName
+              footerClassName,
             )}
           >
             {footer}
