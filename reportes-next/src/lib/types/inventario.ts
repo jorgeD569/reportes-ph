@@ -74,6 +74,14 @@ export type GetActivoComposicionResponse = {
   activo: Activo
   componentes_actuales: ComponenteRelacion[]
   componentes_historial: ComponenteRelacion[]
+  /** Conjunto operativo con componentes fuera de servicio. */
+  inconsistencias_estado?: Array<{
+    componente_id: string | number
+    numero_serie?: string | null
+    descripcion?: string | null
+    estado?: string | null
+    mensaje: string
+  }>
   adjuntos: ActivoAdjunto[]
   error?: string
 }
@@ -118,6 +126,25 @@ export type PostComponenteResponse = {
   code?: string
   conjunto_id_actual?: string | number
   relacion_id?: string | number
+  conjunto_origen_label?: string
+  puede_traspaso?: boolean
+  conjunto_origen?: ActivoResumen | null
+}
+
+export type PostTraspasoResponse = {
+  ok: boolean
+  idempotent?: boolean
+  atomico?: boolean
+  relacion?: ComponenteRelacion
+  relacion_cerrada?: ComponenteRelacion
+  componente?: ActivoResumen
+  conjunto_origen?: ActivoResumen
+  conjunto_destino?: ActivoResumen
+  origen_estado_anterior?: string | null
+  origen_estado_nuevo?: string | null
+  error?: string
+  code?: string
+  conjunto_id_actual?: string | number
 }
 
 export type PostRetirarComponenteResponse = {
@@ -159,6 +186,14 @@ export type GetActivoAdjuntosResponse = {
 export type GetActivoPorSerieResponse = {
   ok: boolean
   activo: Activo
+  /** Presente en GET /activos/serie/:serie cuando el activo pertenece a un conjunto. */
+  pertenencia?: {
+    fecha_desde?: string | null
+    posicion?: string | null
+    observaciones?: string | null
+    manifold?: ActivoResumen | null
+  } | null
+  composicion?: unknown
 }
 
 export type MovimientoInventario = {

@@ -24,7 +24,7 @@ import {
   COORD_TEXT_MUTED,
 } from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
-import { formatTimestamptzDiaAR } from '@/lib/date'
+import { formatFechaSoloDia } from '@/lib/date'
 import { canWriteComposicionConjuntos } from '@/lib/permissions'
 import {
   labelCategoria,
@@ -50,9 +50,10 @@ function display(v: string | null | undefined): string {
   return t === '' ? '—' : t
 }
 
-/** fecha_desde / fecha_hasta son timestamptz → día en America/Argentina/Buenos_Aires. */
+/** fecha_desde / fecha_hasta son timestamptz; display vía helper de fecha (TZ AR en commit posterior). */
 function fechaDia(v: string | null | undefined): string {
-  return formatTimestamptzDiaAR(v)
+  if (!v) return '—'
+  return formatFechaSoloDia(v)
 }
 
 function usuarioActual(): string {
