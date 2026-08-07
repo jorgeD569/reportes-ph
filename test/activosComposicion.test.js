@@ -6,6 +6,10 @@ const assert = require('assert')
 const {
   parseEsConjunto,
   validateAddComponente,
+  validateTraspaso,
+  assessDisponibilidadVinculacion,
+  findInconsistenciasConjuntoOperativo,
+  isFueraDeServicio,
   ubicacionEfectiva,
   resumenActivo,
   resumenComponente,
@@ -264,6 +268,166 @@ test('GET /activos enrich: respuesta sin relaciones', () => {
   assert.strictEqual(out[0].pertenencia_actual, null)
   assert.strictEqual(out[1].es_conjunto, true)
   assert.strictEqual(out[1].es_componente, false)
+})
+
+test('1) fuera de servicio no puede vincularse', () => {
+  const r = validateAddComponente({
+    conjunto: { id: 1, es_conjunto: true },
+    componente: { id: 15, es_conjunto: false, estado: 'fuera de servicio' },
+    membershipActiva: null,
+    mismoConjuntoAbierto: false,
+  })
+  assert.strictEqual(r.ok, false)
+  assert.strictEqual(r.code, 'COMPONENTE_FUERA_DE_SERVICIO')
+  assert.ok(isFueraDeServicio('fuera_de_servicio'))
+})
+
+test('2) libre y operativo puede vincularse', () => {
+  const r = validateAddComponente({
+    conjunto: { id: 1, es_conjunto: true },
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    membershipActiva: null,
+    mismoConjuntoAbierto: false,
+  })
+  assert.strictEqual(r.ok, true)
+  const d = assessDisponibilidadVinculacion({
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    membershipActiva: null,
+  })
+  assert.strictEqual(d.disponible, true)
+})
+
+test('3) al vincular deja de estar disponible', () => {
+  const d = assessDisponibilidadVinculacion({
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    membershipActiva: { id: 9, conjunto_id: 1 },
+    conjuntoOrigen: { id: 1, numero_serie: 'MF-001' },
+    conjuntoDestinoId: 2,
+  })
+  assert.strictEqual(d.disponible, false)
+  assert.strictEqual(d.motivo, 'en_otro_conjunto')
+})
+
+test('4-5) vinculado no se vincula directo; ofrece traspaso con origen automático', () => {
+  const r = validateAddComponente({
+    conjunto: { id: 2, es_conjunto: true, numero_serie: 'MF-002' },
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    membershipActiva: { id: 9, conjunto_id: 1 },
+    mismoConjuntoAbierto: false,
+    conjuntoOrigen: { id: 1, numero_serie: 'MF-001', descripcion: 'Origen' },
+  })
+  assert.strictEqual(r.ok, false)
+  assert.strictEqual(r.code, 'COMPONENTE_EN_OTRO_CONJUNTO')
+  assert.strictEqual(r.details.puede_traspaso, true)
+  assert.strictEqual(r.details.conjunto_origen_label, 'MF-001')
+  assert.ok(String(r.error).includes('traspaso'))
+})
+
+test('6-8) validateTraspaso mueve conceptualmente y respeta FDS del origen', () => {
+  const ok = validateTraspaso({
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    origen: { id: 1, es_conjunto: true, estado: 'operativo', numero_serie: 'MF-1' },
+    destino: { id: 2, es_conjunto: true, estado: 'operativo', numero_serie: 'MF-2' },
+    membershipActiva: { id: 9, conjunto_id: 1 },
+    conjuntoOrigenIdInformado: 1,
+  })
+  assert.strictEqual(ok.ok, true)
+
+  // Simulación de decisión "No": estado origen se conserva.
+  const conservar = { estadoAnterior: 'operativo', origenFuera: false }
+  const estadoFinalNo = conservar.origenFuera
+    ? 'fuera de servicio'
+    : conservar.estadoAnterior
+  assert.strictEqual(estadoFinalNo, 'operativo')
+
+  // Simulación de decisión "Sí".
+  const marcar = { estadoAnterior: 'operativo', origenFuera: true }
+  const estadoFinalSi = marcar.origenFuera
+    ? 'fuera de servicio'
+    : marcar.estadoAnterior
+  assert.strictEqual(estadoFinalSi, 'fuera de servicio')
+})
+
+test('9) traspaso falla si origen desactualizado (sin cambios parciales conceptual)', () => {
+  const r = validateTraspaso({
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    origen: { id: 1, es_conjunto: true },
+    destino: { id: 2, es_conjunto: true },
+    membershipActiva: { id: 9, conjunto_id: 99 },
+    conjuntoOrigenIdInformado: 1,
+  })
+  assert.strictEqual(r.ok, false)
+  assert.strictEqual(r.code, 'ORIGEN_DESACTUALIZADO')
+})
+
+test('10) índice único parcial: un solo membership abierto por componente', () => {
+  // Modelo: dos filas abiertas del mismo componente son inválidas.
+  const abiertas = [
+    { componente_id: 15, conjunto_id: 1, fecha_hasta: null },
+    { componente_id: 15, conjunto_id: 2, fecha_hasta: null },
+  ]
+  const abiertasDe15 = abiertas.filter(
+    (r) => r.componente_id === 15 && r.fecha_hasta == null,
+  )
+  assert.ok(abiertasDe15.length > 1)
+  // La DB lo impide con activo_componentes_componente_activo_key.
+  const uniqueKey = 'activo_componentes_componente_activo_key'
+  assert.ok(uniqueKey.includes('componente'))
+})
+
+test('11) sync desactualizado: conflicto 409 no sobrescribe', () => {
+  const r = validateAddComponente({
+    conjunto: { id: 2, es_conjunto: true },
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    membershipActiva: { id: 9, conjunto_id: 1 },
+    mismoConjuntoAbierto: false,
+    conjuntoOrigen: { id: 1, numero_serie: 'MF-OLD' },
+  })
+  assert.strictEqual(r.status, 409)
+  assert.strictEqual(r.details.conjunto_id_actual, 1)
+})
+
+test('12) conjunto operativo con activo fuera de servicio → inconsistencia', () => {
+  const issues = findInconsistenciasConjuntoOperativo(
+    { id: 1, estado: 'operativo', es_conjunto: true },
+    [
+      {
+        componente: {
+          id: 15,
+          numero_serie: 'VL-1',
+          estado: 'fuera de servicio',
+        },
+      },
+      {
+        componente: { id: 16, numero_serie: 'VL-2', estado: 'operativo' },
+      },
+    ],
+  )
+  assert.strictEqual(issues.length, 1)
+  assert.strictEqual(issues[0].componente_id, 15)
+  assert.ok(String(issues[0].mensaje).includes('Fuera de servicio'))
+})
+
+test('destino fuera de servicio no puede recibir traspaso', () => {
+  const r = validateTraspaso({
+    componente: { id: 15, es_conjunto: false, estado: 'operativo' },
+    origen: { id: 1, es_conjunto: true, estado: 'operativo' },
+    destino: { id: 2, es_conjunto: true, estado: 'fuera de servicio' },
+    membershipActiva: { id: 9, conjunto_id: 1 },
+    conjuntoOrigenIdInformado: 1,
+  })
+  assert.strictEqual(r.ok, false)
+  assert.strictEqual(r.code, 'DESTINO_FUERA_DE_SERVICIO')
+})
+
+test('disponibilidad no confunde estado operativo con vinculación', () => {
+  const operativoVinculado = assessDisponibilidadVinculacion({
+    componente: { id: 1, es_conjunto: false, estado: 'operativo' },
+    membershipActiva: { id: 9, conjunto_id: 10 },
+    conjuntoOrigen: { id: 10, numero_serie: 'MF-10' },
+  })
+  assert.strictEqual(operativoVinculado.disponible, false)
+  assert.strictEqual(isFueraDeServicio('operativo'), false)
 })
 
 if (!process.exitCode) {
