@@ -223,12 +223,18 @@ function registerActivosRelevamientoRoutes({
   supabase,
   registrarMovimiento,
   base64ToBuffer,
+  auth,
+  authDisplayName,
 }) {
   const bucketActivos = process.env.BUCKET_ACTIVOS || 'activos'
   const signedTtl = Math.max(
     60,
     Number(process.env.ADJUNTOS_SIGNED_URL_TTL_SECONDS) || DEFAULT_SIGNED_URL_TTL
   )
+  const displayName =
+    typeof authDisplayName === 'function'
+      ? authDisplayName
+      : (u) => (u && (u.nombre || u.usuario)) || 'Sistema'
 
   async function findActivoByClientUuid(clientUuid) {
     const { data, error } = await supabase
@@ -352,8 +358,8 @@ function registerActivosRelevamientoRoutes({
       const descripcion = optStr(body.descripcion)
       const numeroSerie = normalizeNumeroSerie(body.numero_serie)
       const clientUuid = normalizeClientUuid(body.client_uuid)
-      const creadoPorUserId = normalizeClientUuid(body.creado_por_user_id)
-      const usuarioMov =
+      let creadoPorUserId = normalizeClientUuid(body.creado_por_user_id)
+      let usuarioMov =
         optStr(body.usuario) ||
         optStr(body.usuario_nombre) ||
         (esFlutter ? 'Operador app' : 'Administrador')
@@ -381,6 +387,22 @@ function registerActivosRelevamientoRoutes({
       let esConjunto = resultadoEsConjunto.value
       if (esFlutter) {
         esConjunto = false
+      }
+
+      // Crear conjunto (cPanel): requiere sesión + rol supervisor/coordinador/admin.
+      // Crear activo (Flutter/relevamiento) permanece sin este gate en esta fase.
+      if (esConjunto) {
+        if (!auth || typeof auth.requireComposicionWrite !== 'function') {
+          return res.status(500).json({
+            ok: false,
+            error: 'Autorización no configurada',
+            code: 'AUTH_NOT_CONFIGURED',
+          })
+        }
+        const authUser = await auth.requireComposicionWrite(req, res)
+        if (!authUser) return
+        creadoPorUserId = authUser.id
+        usuarioMov = displayName(authUser)
       }
 
       const catResolved = await resolveCategoriaIdFromBody(supabase, body, {

@@ -82,7 +82,7 @@ export const NAV_COORDINADOR: NavItemDef[] = [
 /** Grupo Inventario en sidebar. */
 export const NAV_INVENTARIO: NavGroupDef = {
   label: 'Inventario',
-  roles: ['coordinador', 'admin'],
+  roles: ['operador', 'supervisor', 'coordinador', 'admin'],
   items: [
     {
       label: 'Consultar activos',
@@ -92,7 +92,7 @@ export const NAV_INVENTARIO: NavGroupDef = {
     {
       label: 'Conjuntos de activos',
       href: routes.coordinador.inventario.manifolds,
-      roles: ['coordinador', 'admin'],
+      roles: ['operador', 'supervisor', 'coordinador', 'admin'],
     },
     {
       label: 'Relevamientos pendientes',
@@ -139,6 +139,12 @@ export function canAccessGestion(rol: string): boolean {
   return role === 'admin' || role === 'coordinador'
 }
 
+/** Escritura de composición en Conjuntos (crear/vincular/retirar/traspasar). */
+export function canWriteComposicionConjuntos(rol: string | null | undefined): boolean {
+  const role = normalizeRol(rol ?? '')
+  return role === 'supervisor' || role === 'coordinador' || role === 'admin'
+}
+
 function canAccessOperadorPaths(role: AppRol): boolean {
   return (
     role === 'operador' ||
@@ -175,14 +181,18 @@ export function canAccessPath(rol: string, pathname: string): boolean {
   }
 
   if (role === 'operador') {
-    return matchesPathPrefix(path, routes.coordinador.reportesPh)
+    return (
+      matchesPathPrefix(path, routes.coordinador.reportesPh) ||
+      matchesPathPrefix(path, routes.coordinador.inventario.manifolds)
+    )
   }
 
   if (role === 'supervisor') {
     return (
       matchesPathPrefix(path, routes.coordinador.dashboard) ||
       matchesPathPrefix(path, routes.coordinador.reportesPh) ||
-      matchesPathPrefix(path, routes.coordinador.partesOperativos)
+      matchesPathPrefix(path, routes.coordinador.partesOperativos) ||
+      matchesPathPrefix(path, routes.coordinador.inventario.manifolds)
     )
   }
 

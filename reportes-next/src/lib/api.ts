@@ -1,4 +1,5 @@
 import { getPublicApiBaseUrl } from '@/lib/env'
+import { handleSessionExpired, readSessionToken } from '@/lib/auth'
 
 export type ApiErrorDetails = {
   status: number
@@ -65,11 +66,14 @@ async function request<T>(
   options?: RequestOptions
 ): Promise<T> {
   const url = buildUrl(path)
+  const token = readSessionToken()
+  const isLogin = path === '/login' || path.startsWith('/login?')
 
   const res = await fetch(url, {
     method,
     headers: {
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token && !isLogin ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -79,6 +83,9 @@ async function request<T>(
   const parsed = await parseBody(res)
 
   if (!res.ok) {
+    if (res.status === 401 && !isLogin) {
+      handleSessionExpired(extractMessage(parsed) || undefined)
+    }
     throw new ApiError({
       status: res.status,
       message:
@@ -124,4 +131,3 @@ export async function del<T>(path: string, options?: RequestOptions) {
   console.log('DELETE', url)
   return request<T>('DELETE', path, undefined, options)
 }
-

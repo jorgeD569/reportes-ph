@@ -7,6 +7,12 @@
   const nodemailer = require('nodemailer')
   const { chromium } = require('playwright')
   const {
+    requireSessionSecretFromEnv,
+    createSessionToken,
+    createAuthMiddleware,
+    authDisplayName,
+  } = require('./authSession')
+  const {
     registerActivosRelevamientoRoutes,
   } = require('./activosRelevamiento')
   const {
@@ -24,6 +30,9 @@
   const {
     registerBusquedaGlobalRoutes,
   } = require('./busquedaGlobal')
+
+  // Obligatorio: sin secreto no hay sesión firmada segura.
+  const APP_SESSION_SECRET = requireSessionSecretFromEnv()
 
   const BCRYPT_ROUNDS = 10
   const MIN_PASSWORD_LENGTH = 8
@@ -91,6 +100,11 @@
     process.env.SUPABASE_SERVICE_ROLE_KEY
   )
 
+  const auth = createAuthMiddleware({
+    supabase,
+    secret: APP_SESSION_SECRET,
+  })
+
   app.post('/login', async (req, res) => {
     try {
       const { usuario, password } = req.body
@@ -137,6 +151,12 @@
         })
       }
 
+      const session = createSessionToken(
+        { id: data.id, rol: data.rol },
+        APP_SESSION_SECRET,
+      )
+
+      // Compatible: campos previos intactos + token (también en usuario para clientes que copian el objeto).
       res.json({
         ok: true,
         usuario: {
@@ -146,7 +166,11 @@
           email: data.email,
           rol: data.rol,
           requiere_cambio_password: Boolean(data.requiere_cambio_password),
+          session_token: session.token,
+          session_expires_at: session.expiresAt,
         },
+        session_token: session.token,
+        session_expires_at: session.expiresAt,
       })
     } catch (err) {
       console.error('Error interno en login:', err)
@@ -1582,7 +1606,7 @@ app.get('/activos/serie/:numeroSerie', async (req, res) => {
     const { data, error } = await supabase
       .from('activos')
       .select(
-        'id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a, activo, estado_revision, es_conjunto'
+        'id, descripcion, numero_serie, categoria, marca, ubicacion, estado, asignado_a, vencimiento, activo, estado_revision, es_conjunto'
       )
       .not('numero_serie', 'is', null)
 
@@ -1629,6 +1653,8 @@ registerActivosRelevamientoRoutes({
   supabase,
   registrarMovimiento,
   base64ToBuffer,
+  auth,
+  authDisplayName,
 })
 
 registerActivosCategoriasRoutes({
@@ -1643,6 +1669,8 @@ registerActivosComposicionRoutes({
   app,
   supabase,
   registrarMovimiento,
+  auth,
+  authDisplayName,
 })
 
 // =========================

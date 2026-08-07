@@ -11,7 +11,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
-import { ApiError, get, post } from '@/lib/api'
+import { get, post } from '@/lib/api'
 import { readAppUsuario } from '@/lib/auth'
 import {
   COORD_BTN_PRIMARY,
@@ -24,20 +24,24 @@ import {
   COORD_TEXT_MUTED,
 } from '@/lib/coordinador/theme'
 import { cn } from '@/lib/cn'
-import { formatFechaAR, formatFechaSoloDia } from '@/lib/date'
+import { formatTimestamptzDiaAR } from '@/lib/date'
+import { canWriteComposicionConjuntos } from '@/lib/permissions'
 import {
   labelCategoria,
   labelEstadoOperativo,
   newClientUuid,
 } from '@/lib/inventario/labels'
 import { CategoriaSelect } from '@/components/inventario/CategoriaSelect'
+import {
+  ACTIVOS_VINCULADOS_TITLE,
+  ActivoVinculadoResumen,
+  VINCULAR_ACTIVO_LABEL,
+  VincularActivoModal,
+} from '@/components/inventario/VincularActivo'
 import type {
   Activo,
   ComponenteRelacion,
   GetActivoComposicionResponse,
-  GetActivoPertenenciaResponse,
-  GetActivoPorSerieResponse,
-  PostComponenteResponse,
   PostRetirarComponenteResponse,
 } from '@/lib/types/inventario'
 
@@ -46,12 +50,9 @@ function display(v: string | null | undefined): string {
   return t === '' ? '—' : t
 }
 
+/** fecha_desde / fecha_hasta son timestamptz → día en America/Argentina/Buenos_Aires. */
 function fechaDia(v: string | null | undefined): string {
-  if (!v) return '—'
-  const solo = formatFechaSoloDia(v)
-  if (solo && solo !== '—') return solo
-  const ar = formatFechaAR(v)
-  return ar === '-' ? '—' : ar
+  return formatTimestamptzDiaAR(v)
 }
 
 function usuarioActual(): string {
@@ -68,6 +69,7 @@ function matchManifoldQuery(a: Activo, q: string): boolean {
 }
 
 export function ManifoldsClient() {
+  const canWrite = canWriteComposicionConjuntos(readAppUsuario()?.rol)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [manifolds, setManifolds] = React.useState<Activo[]>([])
@@ -139,12 +141,13 @@ export function ManifoldsClient() {
 
   const selected = composicion?.activo ?? manifolds.find((a) => String(a.id) === selectedId) ?? null
   const componentes = composicion?.componentes_actuales ?? []
+  const inconsistencias = composicion?.inconsistencias_estado ?? []
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Conjuntos de activos"
-        subtitle="Consultá conjuntos existentes, su ubicación y componentes. La app de campo es la vía principal de alta."
+        subtitle="Consultá conjuntos existentes, su ubicación y activos vinculados. La app de campo es la vía principal de alta."
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(260px,340px)_1fr]">
@@ -156,13 +159,15 @@ export function ManifoldsClient() {
                 Solo activos con es_conjunto = true.
               </div>
             </div>
-            <button
-              type="button"
-              className={COORD_BTN_SECONDARY}
-              onClick={() => setNuevoOpen(true)}
-            >
-              + Nuevo conjunto
-            </button>
+            {canWrite ? (
+              <button
+                type="button"
+                className={COORD_BTN_SECONDARY}
+                onClick={() => setNuevoOpen(true)}
+              >
+                + Nuevo conjunto
+              </button>
+            ) : null}
           </CardHeader>
           <CardBody className="space-y-3 pt-0">
             <input
@@ -179,7 +184,7 @@ export function ManifoldsClient() {
             {!loading && !error && manifolds.length === 0 ? (
               <EmptyState
                 title="Todavía no hay conjuntos registrados"
-                description="Cuando un activo se marque como conjunto, aparecerá aquí para administrar sus componentes."
+                description="Cuando un activo se marque como conjunto, aparecerá aquí para administrar sus activos vinculados."
               />
             ) : null}
             {!loading && !error && manifolds.length > 0 && filtered.length === 0 ? (
@@ -225,17 +230,19 @@ export function ManifoldsClient() {
             <div>
               <div className={COORD_SECTION_TITLE}>Detalle del conjunto</div>
               <div className={COORD_SECTION_MUTED}>
-                Componentes actuales y acciones de composición.
+                {canWrite
+                  ? 'Activos vinculados y acciones de composición.'
+                  : 'Consulta de activos vinculados (solo lectura).'}
               </div>
             </div>
-            {selected ? (
+            {selected && canWrite ? (
               <button
                 type="button"
-                className={COORD_BTN_PRIMARY}
+                className={COORD_BTN_SECONDARY}
                 onClick={() => setAddOpen(true)}
                 disabled={!selectedId || compLoading}
               >
-                Agregar componente
+                {VINCULAR_ACTIVO_LABEL}
               </button>
             ) : null}
           </CardHeader>
@@ -258,6 +265,21 @@ export function ManifoldsClient() {
 
             {selected && !compLoading ? (
               <>
+                {inconsistencias.length > 0 ? (
+                  <InlineMessage
+                    kind="warning"
+                    title="Inconsistencia de estado"
+                    description={
+                      inconsistencias
+                        .map(
+                          (i) =>
+                            i.mensaje ||
+                            `Activo ${i.numero_serie || i.componente_id} fuera de servicio en conjunto operativo.`,
+                        )
+                        .join(' ')
+                    }
+                  />
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <DataField label="Número de serie" value={display(selected.numero_serie)} />
                   <DataField label="Descripción" value={display(selected.descripcion)} />
@@ -274,7 +296,7 @@ export function ManifoldsClient() {
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className={cn('text-sm font-semibold', COORD_TEXT)}>
-                        Componentes actuales
+                        {ACTIVOS_VINCULADOS_TITLE}
                       </div>
                       <div className={COORD_SECTION_MUTED}>Total: {componentes.length}</div>
                     </div>
@@ -283,57 +305,79 @@ export function ManifoldsClient() {
 
                   {componentes.length === 0 ? (
                     <EmptyState
-                      title="Sin componentes"
-                      description="Podés agregar componentes con el botón superior. Un conjunto puede existir vacío."
+                      title="Sin activos vinculados"
+                      description={
+                        canWrite
+                          ? 'Usá + Vincular activo para asociar equipos. Un conjunto puede existir vacío.'
+                          : 'Este conjunto no tiene activos vinculados.'
+                      }
                     />
                   ) : (
                     <ul className="space-y-2">
-                      {componentes.map((rel) => (
+                      {componentes.map((rel) => {
+                        const comp = rel.componente
+                        const resumenActivo: Activo | null = comp
+                          ? {
+                              id: String(comp.id ?? rel.componente_id),
+                              descripcion: comp.descripcion ?? null,
+                              numero_serie: comp.numero_serie ?? null,
+                              categoria: comp.categoria ?? null,
+                              marca: null,
+                              ubicacion: comp.ubicacion ?? null,
+                              ubicacion_efectiva:
+                                rel.ubicacion_efectiva ?? selected?.ubicacion ?? null,
+                              asignado_a: null,
+                              vencimiento: null,
+                              estado: comp.estado ?? null,
+                              es_conjunto: comp.es_conjunto === true,
+                              es_componente: true,
+                              pertenencia_actual: null,
+                            }
+                          : null
+                        return (
                         <li
                           key={String(rel.id)}
                           className="rounded-xl border border-slate-700 bg-slate-900/50 p-3"
                         >
                           <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0 space-y-1 text-sm">
-                              <div>
-                                <span className={COORD_TEXT_MUTED}>Posición: </span>
-                                <span className="font-medium text-white">
-                                  {display(rel.posicion)}
-                                </span>
-                              </div>
-                              <div>
-                                <span className={COORD_TEXT_MUTED}>Serie: </span>
-                                <button
-                                  type="button"
-                                  className="cursor-pointer font-semibold text-sky-300 underline-offset-2 hover:underline"
-                                  onClick={() =>
+                              {resumenActivo ? (
+                                <ActivoVinculadoResumen
+                                  activo={resumenActivo}
+                                  vinculado
+                                  onOpenDetalle={() =>
                                     setDetalleId(
                                       String(rel.componente?.id ?? rel.componente_id),
                                     )
                                   }
-                                >
-                                  {display(rel.componente?.numero_serie)}
-                                </button>
-                              </div>
-                              <div className="text-white">
-                                {display(rel.componente?.descripcion)} ·{' '}
-                                {labelCategoria(rel.componente?.categoria)} ·{' '}
-                                {labelEstadoOperativo(rel.componente?.estado)}
-                              </div>
+                                />
+                              ) : (
+                                <div className="font-semibold text-white">
+                                  {display(String(rel.componente_id))}
+                                </div>
+                              )}
+                              {rel.posicion ? (
+                                <div className={COORD_TEXT_MUTED}>
+                                  Posición: {display(rel.posicion)}
+                                </div>
+                              ) : null}
                               <div className={COORD_TEXT_MUTED}>
-                                Incorporado: {fechaDia(rel.fecha_desde)}
+                                Vinculado: {fechaDia(rel.fecha_desde)}
                               </div>
                             </div>
-                            <button
-                              type="button"
-                              className={COORD_BTN_SECONDARY}
-                              onClick={() => setRetirarRel(rel)}
-                            >
-                              Retirar
-                            </button>
+                            {canWrite ? (
+                              <button
+                                type="button"
+                                className={COORD_BTN_SECONDARY}
+                                onClick={() => setRetirarRel(rel)}
+                              >
+                                Retirar
+                              </button>
+                            ) : null}
                           </div>
                         </li>
-                      ))}
+                        )
+                      })}
                     </ul>
                   )}
                 </div>
@@ -343,28 +387,42 @@ export function ManifoldsClient() {
         </Card>
       </div>
 
-      <AgregarComponenteModal
-        open={addOpen}
-        conjunto={selected}
-        onClose={() => setAddOpen(false)}
-        onDone={async () => {
-          setAddOpen(false)
-          if (selectedId) await loadComposicion(selectedId)
-          await loadManifolds()
-        }}
-      />
+      {canWrite ? (
+        <VincularActivoModal
+          open={addOpen}
+          mode="immediate"
+          conjunto={selected}
+          excludeActivoIds={componentes.map((r) => r.componente_id)}
+          excludeSeries={componentes.map(
+            (r) => r.componente?.numero_serie || '',
+          )}
+          onClose={() => setAddOpen(false)}
+          onLinked={async () => {
+            setAddOpen(false)
+            if (selectedId) await loadComposicion(selectedId)
+            await loadManifolds()
+          }}
+          onTraspasoDone={async () => {
+            if (selectedId) await loadComposicion(selectedId)
+            await loadManifolds()
+          }}
+          onOpenDetalle={(a) => setDetalleId(String(a.id))}
+        />
+      ) : null}
 
-      <RetirarComponenteModal
-        open={retirarRel !== null}
-        conjunto={selected}
-        relacion={retirarRel}
-        onClose={() => setRetirarRel(null)}
-        onDone={async () => {
-          setRetirarRel(null)
-          if (selectedId) await loadComposicion(selectedId)
-          await loadManifolds()
-        }}
-      />
+      {canWrite ? (
+        <RetirarComponenteModal
+          open={retirarRel !== null}
+          conjunto={selected}
+          relacion={retirarRel}
+          onClose={() => setRetirarRel(null)}
+          onDone={async () => {
+            setRetirarRel(null)
+            if (selectedId) await loadComposicion(selectedId)
+            await loadManifolds()
+          }}
+        />
+      ) : null}
 
       <ActivoDetalleModal
         open={detalleId !== null}
@@ -373,15 +431,17 @@ export function ManifoldsClient() {
         onSelectActivoId={setDetalleId}
       />
 
-      <NuevoConjuntoModal
-        open={nuevoOpen}
-        onClose={() => setNuevoOpen(false)}
-        onCreated={async (id) => {
-          setNuevoOpen(false)
-          await loadManifolds()
-          setSelectedId(String(id))
-        }}
-      />
+      {canWrite ? (
+        <NuevoConjuntoModal
+          open={nuevoOpen}
+          onClose={() => setNuevoOpen(false)}
+          onCreated={async (id) => {
+            setNuevoOpen(false)
+            await loadManifolds()
+            setSelectedId(String(id))
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -540,269 +600,9 @@ function NuevoConjuntoModalInner({
         </label>
         <p className={cn('text-xs', COORD_TEXT_MUTED)}>
           Se crea como conjunto (es_conjunto=true), estado operativo y aprobado.
-          La categoría sale del catálogo administrable. Los componentes se agregan
+          La categoría sale del catálogo administrable. Los activos se vinculan
           después.
         </p>
-      </div>
-    </Modal>
-  )
-}
-
-function AgregarComponenteModal({
-  open,
-  conjunto,
-  onClose,
-  onDone,
-}: {
-  open: boolean
-  conjunto: Activo | null
-  onClose: () => void
-  onDone: () => Promise<void>
-}) {
-  if (!open) return null
-  return (
-    <AgregarComponenteModalInner
-      key={String(conjunto?.id ?? 'new')}
-      conjunto={conjunto}
-      onClose={onClose}
-      onDone={onDone}
-    />
-  )
-}
-
-function AgregarComponenteModalInner({
-  conjunto,
-  onClose,
-  onDone,
-}: {
-  conjunto: Activo | null
-  onClose: () => void
-  onDone: () => Promise<void>
-}) {
-  const [serie, setSerie] = React.useState('')
-  const [posicion, setPosicion] = React.useState('')
-  const [observaciones, setObservaciones] = React.useState('')
-  const [buscando, setBuscando] = React.useState(false)
-  const [busquedaErr, setBusquedaErr] = React.useState<string | null>(null)
-  const [candidato, setCandidato] = React.useState<Activo | null>(null)
-  const [pertenenciaMsg, setPertenenciaMsg] = React.useState<string | null>(null)
-  const [conflicto, setConflicto] = React.useState<string | null>(null)
-  const [submitErr, setSubmitErr] = React.useState<string | null>(null)
-  const [saving, setSaving] = React.useState(false)
-  const savingRef = React.useRef(false)
-  const clientUuidRef = React.useRef<string>(newClientUuid())
-
-  async function buscar() {
-    const s = serie.trim()
-    if (!s) {
-      setBusquedaErr('Ingresá un número de serie.')
-      return
-    }
-    setBuscando(true)
-    setBusquedaErr(null)
-    setConflicto(null)
-    setSubmitErr(null)
-    setCandidato(null)
-    setPertenenciaMsg(null)
-    try {
-      const data = await get<GetActivoPorSerieResponse>(
-        `/activos/serie/${encodeURIComponent(s)}`,
-      )
-      const act = data?.activo
-      if (!act) throw new Error('No se encontró el activo')
-      if (act.es_conjunto === true) {
-        setBusquedaErr('No se puede agregar otro conjunto como componente.')
-        return
-      }
-      if (conjunto && String(act.id) === String(conjunto.id)) {
-        setBusquedaErr('Un activo no puede ser componente de sí mismo.')
-        return
-      }
-      setCandidato(act)
-      try {
-        const pert = await get<GetActivoPertenenciaResponse>(
-          `/activos/${encodeURIComponent(String(act.id))}/pertenencia`,
-        )
-        if (pert?.pertenencia_actual) {
-          const manSerie =
-            pert.pertenencia_actual.manifold?.numero_serie ||
-            pert.pertenencia_actual.conjunto_id
-          setPertenenciaMsg(
-            `Este activo ya pertenece al conjunto ${manSerie}. No se puede agregar hasta retirarlo.`,
-          )
-        }
-      } catch {
-        /* pertenencia opcional para el aviso */
-      }
-    } catch (e) {
-      setBusquedaErr(e instanceof Error ? e.message : String(e))
-    } finally {
-      setBuscando(false)
-    }
-  }
-
-  async function confirmar() {
-    if (!conjunto || !candidato || savingRef.current || pertenenciaMsg) return
-    savingRef.current = true
-    setSaving(true)
-    setSubmitErr(null)
-    setConflicto(null)
-    try {
-      await post<PostComponenteResponse>(
-        `/activos/${encodeURIComponent(String(conjunto.id))}/componentes`,
-        {
-          componente_id: candidato.id,
-          posicion: posicion.trim() || null,
-          observaciones: observaciones.trim() || null,
-          client_uuid: clientUuidRef.current,
-          usuario: usuarioActual(),
-        },
-      )
-      await onDone()
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        const details = e.details as PostComponenteResponse | undefined
-        const code = details?.code
-        if (code === 'COMPONENTE_EN_OTRO_CONJUNTO') {
-          setConflicto(
-            `${e.message}. Conjunto actual (id): ${details?.conjunto_id_actual ?? '—'}.`,
-          )
-          return
-        }
-      }
-      setSubmitErr(e instanceof Error ? e.message : String(e))
-    } finally {
-      savingRef.current = false
-      setSaving(false)
-    }
-  }
-
-  const canConfirm =
-    Boolean(candidato) &&
-    !pertenenciaMsg &&
-    !buscando &&
-    !saving &&
-    candidato?.es_conjunto !== true
-
-  return (
-    <Modal
-      open
-      onClose={() => {
-        if (savingRef.current) return
-        onClose()
-      }}
-      title="Agregar componente"
-      subtitle={
-        conjunto
-          ? `Conjunto ${conjunto.numero_serie || conjunto.id}`
-          : undefined
-      }
-      compact
-      maxWidthClassName="w-[min(640px,calc(100vw-32px))] max-w-none"
-      footer={
-        <div className="flex flex-wrap justify-end gap-2">
-          <button
-            type="button"
-            className={COORD_BTN_SECONDARY}
-            disabled={saving}
-            onClick={onClose}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className={COORD_BTN_PRIMARY}
-            disabled={!canConfirm}
-            onClick={() => void confirmar()}
-          >
-            {saving ? 'Agregando…' : 'Confirmar alta'}
-          </button>
-        </div>
-      }
-    >
-      <div className="space-y-4">
-        <label className={COORD_LABEL}>
-          Buscar por número de serie
-          <div className="mt-1 flex flex-wrap gap-2">
-            <input
-              className={`${COORD_INPUT_LG} min-w-0 flex-1 normal-case`}
-              value={serie}
-              disabled={saving}
-              onChange={(e) => setSerie(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  void buscar()
-                }
-              }}
-            />
-            <button
-              type="button"
-              className={COORD_BTN_SECONDARY}
-              disabled={buscando || saving}
-              onClick={() => void buscar()}
-            >
-              {buscando ? 'Buscando…' : 'Buscar'}
-            </button>
-          </div>
-        </label>
-
-        {busquedaErr ? (
-          <InlineMessage kind="error" title="Búsqueda" description={busquedaErr} />
-        ) : null}
-        {pertenenciaMsg ? (
-          <InlineMessage kind="warning" title="Ya pertenece a otro conjunto" description={pertenenciaMsg} />
-        ) : null}
-        {conflicto ? (
-          <InlineMessage kind="error" title="Conflicto" description={conflicto} />
-        ) : null}
-        {submitErr ? (
-          <InlineMessage kind="error" title="No se pudo agregar" description={submitErr} />
-        ) : null}
-
-        {candidato ? (
-          <div className="rounded-xl border border-slate-700 bg-slate-900/50 p-4">
-            <div className={cn('mb-2 text-sm font-semibold', COORD_TEXT)}>Resultado</div>
-            <div className="grid gap-2 text-sm sm:grid-cols-2">
-              <DataField label="Serie" value={display(candidato.numero_serie)} />
-              <DataField label="Descripción" value={display(candidato.descripcion)} />
-              <DataField label="Categoría" value={labelCategoria(candidato.categoria)} />
-              <DataField label="Estado" value={labelEstadoOperativo(candidato.estado)} />
-              <DataField label="Ubicación" value={display(candidato.ubicacion)} />
-              <div>
-                <ActivoTipoBadge esConjunto={candidato.es_conjunto === true} />
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        <label className={COORD_LABEL}>
-          Posición dentro del conjunto
-          <input
-            className={`${COORD_INPUT_LG} mt-1 normal-case`}
-            value={posicion}
-            disabled={saving}
-            onChange={(e) => setPosicion(e.target.value)}
-            placeholder="Ej. A1, entrada, lateral…"
-          />
-        </label>
-
-        <label className={COORD_LABEL}>
-          Observaciones
-          <textarea
-            className={`${COORD_INPUT_LG} mt-1 min-h-[80px] normal-case`}
-            value={observaciones}
-            disabled={saving}
-            onChange={(e) => setObservaciones(e.target.value)}
-          />
-        </label>
-
-        {candidato && conjunto ? (
-          <p className={cn('text-sm font-medium', COORD_TEXT)}>
-            Agregar [{candidato.numero_serie || candidato.id}] al conjunto [
-            {conjunto.numero_serie || conjunto.id}]
-          </p>
-        ) : null}
       </div>
     </Modal>
   )

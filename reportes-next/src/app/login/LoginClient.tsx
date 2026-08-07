@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { SIDEBAR_BRAND } from '@/components/shell/SidebarBrand'
 import { Card, CardBody, CardHeader } from '@/components/ui/Card'
 import { InlineMessage } from '@/components/ui/InlineMessage'
@@ -10,6 +10,7 @@ import {
   CAMBIAR_PASSWORD_PATH,
   persistAppUsuario,
   redirectPathForRol,
+  SESSION_EXPIRED_MESSAGE,
   usuarioRequiereCambioPassword,
   type LoginResponse,
 } from '@/lib/auth'
@@ -17,11 +18,20 @@ import { normalizeUserError } from '@/lib/user-errors'
 
 export function LoginClient() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [usuario, setUsuario] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [error, setError] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
+
+  React.useEffect(() => {
+    const sessionFlag = searchParams.get('session')
+    const msg = searchParams.get('message')
+    if (sessionFlag === 'expired') {
+      setError(msg?.trim() || SESSION_EXPIRED_MESSAGE)
+    }
+  }, [searchParams])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,9 +46,16 @@ export function LoginClient() {
         return
       }
 
+      const sessionToken =
+        data.session_token || data.usuario.session_token || undefined
+      const sessionExpires =
+        data.session_expires_at || data.usuario.session_expires_at || undefined
+
       persistAppUsuario({
         ...data.usuario,
         requiere_cambio_password: Boolean(data.usuario.requiere_cambio_password),
+        session_token: sessionToken,
+        session_expires_at: sessionExpires,
       })
 
       if (usuarioRequiereCambioPassword(data.usuario)) {

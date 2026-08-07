@@ -84,6 +84,8 @@ export function CambiarPasswordClient() {
         email: data.usuario.email ?? '',
         rol: data.usuario.rol,
         requiere_cambio_password: false,
+        session_token: readAppUsuario()?.session_token,
+        session_expires_at: readAppUsuario()?.session_expires_at,
       })
 
       router.replace(redirectPathForRol(data.usuario.rol))
