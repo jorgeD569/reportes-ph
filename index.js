@@ -1697,6 +1697,7 @@ const ACTIVO_UPDATE_FIELDS = [
   'vencimiento',
   'certificado_url',
   'observaciones',
+  'codigo_interno',
   'proveedor',
   'dias_aviso',
   'activo',

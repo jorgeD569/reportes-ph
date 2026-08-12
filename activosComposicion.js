@@ -469,6 +469,31 @@ function registerActivosComposicionRoutes({
     typeof authDisplayName === 'function'
       ? authDisplayName
       : (u) => (u && (u.nombre || u.usuario)) || 'Sistema'
+
+  const bucketActivos = process.env.BUCKET_ACTIVOS || 'activos'
+  const signedTtl = (() => {
+    const n = Number(process.env.ADJUNTOS_SIGNED_URL_TTL_SECONDS)
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 3600
+  })()
+
+  /** Misma mecánica que GET /activos/:id/adjuntos (url_firmada, sin exponer path crudo). */
+  async function withSignedUrls(adjuntos) {
+    const out = []
+    for (const adj of adjuntos || []) {
+      const row = { ...adj, url_publica: null, url_firmada: null }
+      if (adj.storage_path) {
+        const { data, error } = await supabase.storage
+          .from(bucketActivos)
+          .createSignedUrl(adj.storage_path, signedTtl)
+        if (!error && data?.signedUrl) {
+          row.url_firmada = data.signedUrl
+        }
+      }
+      out.push(row)
+    }
+    return out
+  }
+
   async function getActivoById(id) {
     const { data, error } = await supabase
       .from('activos')
@@ -540,7 +565,7 @@ function registerActivosComposicionRoutes({
       .order('orden', { ascending: true })
       .order('created_at', { ascending: true })
     if (error) throw error
-    return data || []
+    return withSignedUrls(data || [])
   }
 
   async function enrichSeriePayload(activo) {

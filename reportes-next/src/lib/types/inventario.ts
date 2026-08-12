@@ -19,7 +19,7 @@ export type Activo = {
   creado_por_user_id?: string | null
   codigo_interno?: string | null
   dias_aviso?: number | null
-  /** Manifold / conjunto. GET /activos siempre lo envía como boolean. */
+  /** Conjunto (`es_conjunto`). GET /activos siempre lo envía como boolean. */
   es_conjunto: boolean
   /** true si tiene relación activa (fecha_hasta null). */
   es_componente: boolean

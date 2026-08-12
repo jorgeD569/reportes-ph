@@ -1,10 +1,15 @@
 'use client'
 
 /**
- * Módulo de Gestión de inventario (solo UI por ahora).
+ * Módulo de Gestión de inventario.
  *
- * Futuros endpoints (desde submit / guardado):
- * TODO: POST /activos — alta de nuevo activo
+ * Endpoints usados desde Nuevo activo / conjunto:
+ * - POST /activos
+ * - GET /activos/serie/:numeroSerie
+ * - POST /activos/:id/componentes
+ * - GET /activos/:id/composicion (detalle)
+ * - GET /activos/:id/pertenencia (detalle)
+ *
  * TODO: POST /consumibles — alta de consumible
  * TODO: POST /movimientos-activos — registro de movimiento de activo
  * TODO: POST /movimientos-consumibles — registro de movimiento de consumible
@@ -22,7 +27,6 @@ import {
   COORD_LABEL,
   COORD_SECTION_MUTED,
   COORD_SECTION_TITLE,
-  COORD_TEXT,
   COORD_TEXT_MUTED,
   COORD_TEXTAREA,
 } from '@/lib/coordinador/theme'
@@ -47,11 +51,11 @@ const TABS: { id: TabId; label: string }[] = [
 ]
 
 import { ActualizarActivoTab } from './ActualizarActivoTab'
+import { NuevoActivoTab } from './NuevoActivoTab'
 import {
   PROVEEDOR_DEFAULT,
   proveedoresMock,
 } from './inventarioGestionConstants'
-import { CategoriaSelect } from '@/components/inventario/CategoriaSelect'
 
 type PreviewPayload =
   | { tab: 'activo'; values: Record<string, string>; docTitle: string }
@@ -101,25 +105,6 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
 
   /** Vista previa del “documento operativo” (solo frontend). */
   const [preview, setPreview] = React.useState<PreviewPayload | null>(null)
-
-  const [nuevoActivo, setNuevoActivo] = React.useState({
-    categoria_id: '',
-    categoria: '',
-    descripcion: '',
-    proveedor: PROVEEDOR_DEFAULT,
-    numero_serie: '',
-    marca: '',
-    estado: '',
-    ubicacion: '',
-    asignado_a: '',
-    vencimiento: '',
-    dias_aviso: '',
-    observaciones: '',
-    es_conjunto: false,
-  })
-
-  /** Archivo adjunto (solo cliente). El input file no admite value controlado; el archivo vive en estado. */
-  const [certificadoArchivo, setCertificadoArchivo] = React.useState<File | null>(null)
 
   const [nuevoConsumible, setNuevoConsumible] = React.useState({
     descripcion: '',
@@ -179,33 +164,6 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
     motivo_uso: '',
     observaciones: '',
   })
-
-  function previewActivo() {
-    setPreview({
-      tab: 'activo',
-      docTitle: 'Documento · Alta de activo',
-      values: {
-        Categoría: nuevoActivo.categoria,
-        'Tipo de activo': nuevoActivo.es_conjunto
-          ? 'Manifold / conjunto'
-          : 'Individual',
-        Descripción: nuevoActivo.descripcion,
-        Proveedor:
-          nuevoActivo.proveedor === PROVEEDOR_DEFAULT ? '' : nuevoActivo.proveedor,
-        'Número de serie': nuevoActivo.numero_serie,
-        Marca: nuevoActivo.marca,
-        Estado: nuevoActivo.estado,
-        Ubicación: nuevoActivo.ubicacion,
-        'Asignado a': nuevoActivo.asignado_a,
-        Vencimiento: nuevoActivo.vencimiento,
-        'Días de aviso': nuevoActivo.dias_aviso,
-        ...(certificadoArchivo
-          ? { 'Certificado / documentación': certificadoArchivo.name }
-          : {}),
-        Observaciones: nuevoActivo.observaciones,
-      },
-    })
-  }
 
   function previewConsumible() {
     setPreview({
@@ -318,166 +276,16 @@ function GestionInventarioAuthed({ logout }: { logout: () => void }) {
 
       {tab === 'activo' ? (
         <Card>
-          <CardHeader>
-            <div>
-              <div className={COORD_SECTION_TITLE}>Nuevo activo</div>
-              <div className={COORD_SECTION_MUTED}>
-                Completá los datos del equipo para registrarlo en inventario.
-              </div>
-            </div>
-          </CardHeader>
-          <CardBody className="pt-0">
-            <div className="grid gap-4 md:grid-cols-2">
-              
-              <div>
-                <label className={COORD_LABEL}>
-                  Descripción
-                </label>
-                <input className={inputClass()} value={nuevoActivo.descripcion}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, descripcion: e.target.value }))} />
-              </div>              <div>
-                <label className={COORD_LABEL}>Categoría</label>
-                <CategoriaSelect
-                  className={inputClass()}
-                  value={nuevoActivo.categoria_id}
-                  aplicable={
-                    nuevoActivo.es_conjunto ? 'conjuntos' : 'activos'
-                  }
-                  onChange={(id, cat) =>
-                    setNuevoActivo((s) => ({
-                      ...s,
-                      categoria_id: id,
-                      categoria: cat?.nombre || '',
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>Tipo de activo</label>
-                <select
-                  className={inputClass()}
-                  value={nuevoActivo.es_conjunto ? 'manifold' : 'individual'}
-                  onChange={(e) =>
-                    setNuevoActivo((s) => ({
-                      ...s,
-                      es_conjunto: e.target.value === 'manifold',
-                    }))
-                  }
-                >
-                  <option value="individual">Individual</option>
-                  <option value="manifold">Manifold / conjunto</option>
-                </select>
-                <p className="mt-1 text-xs text-slate-400">
-                  Define si es un conjunto (es_conjunto). La categoría sigue siendo independiente
-                  (p. ej. línea). No uses ubicación para el serial del manifold.
-                </p>
-              </div>
-              <div className="md:col-span-2">
-                <label className={COORD_LABEL}>
-                  Proveedor
-                </label>
-                <select
-                  className={inputClass()}
-                  value={nuevoActivo.proveedor}
-                  onChange={(e) =>
-                    setNuevoActivo((s) => ({ ...s, proveedor: e.target.value }))
-                  }
-                >
-                  {proveedoresMock.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Número de serie
-                </label>
-                <input className={inputClass()} value={nuevoActivo.numero_serie}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, numero_serie: e.target.value }))} />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Marca
-                </label>
-                <input className={inputClass()} value={nuevoActivo.marca}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, marca: e.target.value }))} />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Estado
-                </label>
-                <input className={inputClass()} value={nuevoActivo.estado}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, estado: e.target.value }))} placeholder="Ej. operativo / en reparación" />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Ubicación
-                </label>
-                <input className={inputClass()} value={nuevoActivo.ubicacion}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, ubicacion: e.target.value }))} />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Asignado a
-                </label>
-                <input className={inputClass()} value={nuevoActivo.asignado_a}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, asignado_a: e.target.value }))} />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Vencimiento
-                </label>
-                <input type="date" className={inputClass()} value={nuevoActivo.vencimiento}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, vencimiento: e.target.value }))} />
-              </div>
-              <div>
-                <label className={COORD_LABEL}>
-                  Días de aviso
-                </label>
-                <input className={inputClass()} inputMode="numeric" value={nuevoActivo.dias_aviso}
-                  onChange={(e) => setNuevoActivo((s) => ({ ...s, dias_aviso: e.target.value }))}
-                  placeholder="Antes del vencimiento" />
-              </div>
-              <div className="md:col-span-2">
-                {/* TODO: Subir este archivo a Supabase Storage y persistir la URL pública en certificado_url vía POST /activos (junto al resto del alta). */}
-                <label className={COORD_LABEL}>
-                  Certificado / documentación
-                </label>
-                <input
-                  type="file"
-                  accept=".pdf,image/*"
-                  className={cn(
-                    inputClass(),
-                    'cursor-pointer file:mr-3 file:rounded-lg file:border-0 file:bg-slate-800 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white'
-                  )}
-                  onChange={(e) => setCertificadoArchivo(e.target.files?.[0] ?? null)}
-                />
-                <p className={COORD_SECTION_MUTED}>
-                  {certificadoArchivo ? (
-                    <span className={cn('font-semibold', COORD_TEXT)}>{certificadoArchivo.name}</span>
-                  ) : (
-                    'Ningún archivo seleccionado.'
-                  )}
-                </p>
-              </div>
-              <div className="md:col-span-2">
-                <label className={COORD_LABEL}>
-                  Observaciones
-                </label>
-                <textarea className={textareaClass()} value={nuevoActivo.observaciones}
-                  onChange={(e) =>
-                    setNuevoActivo((s) => ({ ...s, observaciones: e.target.value }))
-                  } />
-              </div>
-            </div>
-            <div className="mt-6 flex flex-wrap gap-2">
-              <button type="button" onClick={previewActivo}
-                className={COORD_BTN_PRIMARY_LG}>
-                Vista previa
-              </button>
-            </div>
+          <CardBody>
+            <NuevoActivoTab
+              onPreview={(values) =>
+                setPreview({
+                  tab: 'activo',
+                  docTitle: 'Documento · Alta de activo',
+                  values,
+                })
+              }
+            />
           </CardBody>
         </Card>
       ) : null}

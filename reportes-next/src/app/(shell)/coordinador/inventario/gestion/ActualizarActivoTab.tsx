@@ -499,7 +499,7 @@ export function ActualizarActivoTab() {
                     }
                   >
                     <option value="individual">Individual</option>
-                    <option value="manifold">Manifold / conjunto</option>
+                    <option value="manifold">Conjunto</option>
                   </select>
                   <p className="mt-1 text-xs text-slate-400">
                     Independiente de la categoría. No uses ubicación para el serial del manifold.

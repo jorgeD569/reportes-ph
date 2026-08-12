@@ -41,6 +41,8 @@ export function Modal({
   const panelRef = React.useRef<HTMLDivElement>(null)
   const bodyRef = React.useRef<HTMLDivElement>(null)
   const previouslyFocused = React.useRef<HTMLElement | null>(null)
+  const onCloseRef = React.useRef(onClose)
+  onCloseRef.current = onClose
 
   React.useEffect(() => {
     if (!open) return
@@ -52,7 +54,7 @@ export function Modal({
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab' || !panelRef.current) return
@@ -72,12 +74,21 @@ export function Modal({
     }
 
     window.addEventListener('keydown', onKeyDown)
+    // Enfocar el panel/cerrar SOLO al abrir el modal (open → true).
+    // No depende de `onClose`: si el padre pasa () => ... inline, cada tecla
+    // recreaba onClose, re-ejecutaba este efecto y robaba el foco del input.
     requestAnimationFrame(() => {
       if (bodyRef.current) bodyRef.current.scrollTop = 0
       const closeBtn = panelRef.current?.querySelector<HTMLElement>(
         '[data-modal-close]',
       )
-      ;(closeBtn || panelRef.current)?.focus()
+      const active = document.activeElement as HTMLElement | null
+      const focusAlreadyInside =
+        active && panelRef.current?.contains(active) && active !== panelRef.current
+      // Si el usuario ya hizo clic en un input del body, no mover el foco.
+      if (!focusAlreadyInside) {
+        ;(closeBtn || panelRef.current)?.focus()
+      }
     })
 
     const prevOverflow = document.body.style.overflow
@@ -88,7 +99,7 @@ export function Modal({
       document.body.style.overflow = prevOverflow
       previouslyFocused.current?.focus?.()
     }
-  }, [open, onClose])
+  }, [open])
 
   if (!open) return null
 

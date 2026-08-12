@@ -29,7 +29,6 @@ import { canWriteComposicionConjuntos } from '@/lib/permissions'
 import {
   labelCategoria,
   labelEstadoOperativo,
-  newClientUuid,
 } from '@/lib/inventario/labels'
 import { CategoriaSelect } from '@/components/inventario/CategoriaSelect'
 import {
@@ -38,6 +37,14 @@ import {
   VINCULAR_ACTIVO_LABEL,
   VincularActivoModal,
 } from '@/components/inventario/VincularActivo'
+import { ActivoAdjuntosGallery } from '@/components/inventario/ActivoAdjuntosGallery'
+import {
+  displayCodigoInterno,
+  displayObservaciones,
+  displayUbicacionConjunto,
+  matchConjuntoQuery,
+  ubicacionVisibleConjunto,
+} from '@/lib/inventario/conjuntoDisplay'
 import type {
   Activo,
   ComponenteRelacion,
@@ -59,14 +66,6 @@ function fechaDia(v: string | null | undefined): string {
 function usuarioActual(): string {
   const u = readAppUsuario()
   return u?.nombre?.trim() || u?.usuario?.trim() || 'Coordinador'
-}
-
-function matchManifoldQuery(a: Activo, q: string): boolean {
-  if (!q) return true
-  const hay = [a.numero_serie, a.descripcion, a.ubicacion, a.marca]
-    .map((x) => String(x || '').toLowerCase())
-    .join(' ')
-  return hay.includes(q)
 }
 
 export function ManifoldsClient() {
@@ -137,7 +136,7 @@ export function ManifoldsClient() {
 
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase()
-    return manifolds.filter((a) => matchManifoldQuery(a, q))
+    return manifolds.filter((a) => matchConjuntoQuery(a, q))
   }, [manifolds, query])
 
   const selected = composicion?.activo ?? manifolds.find((a) => String(a.id) === selectedId) ?? null
@@ -173,7 +172,7 @@ export function ManifoldsClient() {
           <CardBody className="space-y-3 pt-0">
             <input
               className={COORD_INPUT_LG}
-              placeholder="Buscar por serial o descripción…"
+              placeholder="Buscar por código interno, serial o descripción…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Buscar conjuntos"
@@ -210,10 +209,17 @@ export function ManifoldsClient() {
                       )}
                     >
                       <div className="font-semibold text-white">
-                        {a.numero_serie || 'Sin serie'}
+                        {displayCodigoInterno(a.codigo_interno)}
                       </div>
                       <div className={cn('text-sm', COORD_TEXT_MUTED)}>
                         {a.descripcion || 'Sin descripción'}
+                      </div>
+                      <div className={cn('mt-0.5 text-xs', COORD_TEXT_MUTED)}>
+                        Serie: {a.numero_serie || 'Sin serie'}
+                      </div>
+                      <div className={cn('mt-0.5 text-xs', COORD_TEXT_MUTED)}>
+                        Ubicación:{' '}
+                        {displayUbicacionConjunto(ubicacionVisibleConjunto(a))}
                       </div>
                       <div className="mt-1">
                         <ActivoTipoBadge esConjunto />
@@ -282,16 +288,52 @@ export function ManifoldsClient() {
                   />
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <DataField label="Número de serie" value={display(selected.numero_serie)} />
-                  <DataField label="Descripción" value={display(selected.descripcion)} />
-                  <DataField label="Categoría" value={labelCategoria(selected.categoria)} />
-                  <DataField label="Estado" value={labelEstadoOperativo(selected.estado)} />
-                  <DataField label="Ubicación" value={display(selected.ubicacion)} />
+                  <div className="sm:col-span-2">
+                    <DataField
+                      label="Descripción"
+                      value={display(selected.descripcion)}
+                    />
+                  </div>
                   <DataField
-                    label="Ubicación efectiva"
-                    value={display(selected.ubicacion_efectiva ?? selected.ubicacion)}
+                    label="Código interno"
+                    value={displayCodigoInterno(selected.codigo_interno)}
                   />
+                  <DataField
+                    label="Número de serie"
+                    value={display(selected.numero_serie)}
+                  />
+                  <DataField
+                    label="Categoría"
+                    value={labelCategoria(selected.categoria)}
+                  />
+                  <DataField
+                    label="Estado"
+                    value={labelEstadoOperativo(selected.estado)}
+                  />
+                  <div className="sm:col-span-2">
+                    <DataField
+                      label="Ubicación"
+                      value={displayUbicacionConjunto(
+                        ubicacionVisibleConjunto(selected),
+                      )}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <div className={COORD_LABEL}>Observaciones</div>
+                    <div
+                      className={cn(
+                        'mt-1 whitespace-pre-wrap rounded-xl border border-slate-700 bg-slate-950/40 px-3 py-2.5 text-sm',
+                        COORD_TEXT,
+                      )}
+                    >
+                      {displayObservaciones(selected.observaciones)}
+                    </div>
+                  </div>
                 </div>
+
+                <ActivoAdjuntosGallery
+                  adjuntos={composicion?.adjuntos ?? []}
+                />
 
                 <div>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
@@ -471,8 +513,10 @@ function NuevoConjuntoModalInner({
 }) {
   const [descripcion, setDescripcion] = React.useState('')
   const [serie, setSerie] = React.useState('')
+  const [codigoInterno, setCodigoInterno] = React.useState('')
   const [ubicacion, setUbicacion] = React.useState('')
   const [marca, setMarca] = React.useState('')
+  const [observaciones, setObservaciones] = React.useState('')
   const [categoriaId, setCategoriaId] = React.useState('')
   const [err, setErr] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
@@ -501,6 +545,8 @@ function NuevoConjuntoModalInner({
           estado: 'operativo',
           marca: marca.trim() || null,
           ubicacion: ubicacion.trim() || null,
+          codigo_interno: codigoInterno.trim() || null,
+          observaciones: observaciones.trim() || null,
           es_conjunto: true,
           usuario: usuarioActual(),
         },
@@ -582,6 +628,16 @@ function NuevoConjuntoModalInner({
           />
         </label>
         <label className={COORD_LABEL}>
+          Código interno
+          <input
+            className={`${COORD_INPUT_LG} mt-1 normal-case`}
+            value={codigoInterno}
+            disabled={saving}
+            placeholder="Opcional"
+            onChange={(e) => setCodigoInterno(e.target.value)}
+          />
+        </label>
+        <label className={COORD_LABEL}>
           Ubicación
           <input
             className={`${COORD_INPUT_LG} mt-1 normal-case`}
@@ -597,6 +653,16 @@ function NuevoConjuntoModalInner({
             value={marca}
             disabled={saving}
             onChange={(e) => setMarca(e.target.value)}
+          />
+        </label>
+        <label className={COORD_LABEL}>
+          Observaciones
+          <textarea
+            className={`${COORD_INPUT_LG} mt-1 min-h-[88px] normal-case`}
+            rows={3}
+            value={observaciones}
+            disabled={saving}
+            onChange={(e) => setObservaciones(e.target.value)}
           />
         </label>
         <p className={cn('text-xs', COORD_TEXT_MUTED)}>

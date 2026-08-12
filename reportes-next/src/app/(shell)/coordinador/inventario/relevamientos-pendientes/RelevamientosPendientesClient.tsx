@@ -9,6 +9,7 @@ import { LoadingState } from '@/components/ui/LoadingState'
 import { Modal } from '@/components/ui/Modal'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { StatusBadge } from '@/components/ui/StatusBadge'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { get, post } from '@/lib/api'
 import { readAppUsuario } from '@/lib/auth'
 import {
@@ -20,6 +21,7 @@ import {
   COORD_SECTION_TITLE,
 } from '@/lib/coordinador/theme'
 import { formatFechaAR } from '@/lib/date'
+import { displayCodigoInterno } from '@/lib/inventario/conjuntoDisplay'
 import type {
   Activo,
   ActivoAdjunto,
@@ -41,7 +43,7 @@ type EditForm = {
   vencimiento: string
   codigo_interno: string
   observaciones: string
-  /** false = individual, true = manifold / conjunto */
+  /** false = individual, true = conjunto */
   es_conjunto: boolean
   /** ID del conjunto al que pertenece (activo_componentes). */
   conjunto_id: string
@@ -213,6 +215,10 @@ export function RelevamientosPendientesClient() {
   const [lightbox, setLightbox] = React.useState<{ url: string; title: string } | null>(
     null,
   )
+  const [confirmAprobarOpen, setConfirmAprobarOpen] = React.useState(false)
+  const [rejectOpen, setRejectOpen] = React.useState(false)
+  const [rejectMotivo, setRejectMotivo] = React.useState('')
+  const [rejectErr, setRejectErr] = React.useState<string | null>(null)
 
   const selectedFromQuery = React.useMemo(() => {
     if (!activoQuery || loading) return null
@@ -305,10 +311,9 @@ export function RelevamientosPendientesClient() {
     }
   }
 
-  async function aprobar() {
-    if (!selected || !editForm || busyRef.current) return
-    if (!window.confirm('¿Aprobar este relevamiento y habilitarlo en el inventario?')) {
-      return
+  async function ejecutarAprobar() {
+    if (!selected || !editForm || busyRef.current) {
+      throw new Error('No hay relevamiento seleccionado.')
     }
     busyRef.current = true
     setBusy(true)
@@ -344,6 +349,7 @@ export function RelevamientosPendientesClient() {
       if (!data?.ok) throw new Error(data?.error || 'No se pudo aprobar')
 
       setActionMsg('Relevamiento aprobado. Ya figura en el inventario operativo.')
+      setConfirmAprobarOpen(false)
       setManualSelected(null)
       adjuntosLoadedForRef.current = null
       if (activoQuery) {
@@ -354,24 +360,28 @@ export function RelevamientosPendientesClient() {
       }
       await load()
     } catch (e) {
-      setActionErr(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setActionErr(msg)
+      throw e instanceof Error ? e : new Error(msg)
     } finally {
       busyRef.current = false
       setBusy(false)
     }
   }
 
-  async function rechazar() {
-    if (!selected || busyRef.current) return
-    const motivo =
-      window.prompt('Motivo del rechazo (obligatorio):', '')?.trim() || ''
-    if (!motivo) return
-    if (!window.confirm('¿Confirmar rechazo? El activo no se eliminará.')) return
-
+  async function ejecutarRechazar() {
+    if (!selected || busyRef.current) {
+      throw new Error('No hay relevamiento seleccionado.')
+    }
+    const motivo = rejectMotivo.trim()
+    if (!motivo) {
+      throw new Error('El motivo del rechazo es obligatorio.')
+    }
     busyRef.current = true
     setBusy(true)
     setActionErr(null)
     setActionMsg(null)
+    setRejectErr(null)
     try {
       const data = await post<{ ok: boolean; error?: string }>(
         `/activos/${encodeURIComponent(selected.id)}/rechazar`,
@@ -379,6 +389,8 @@ export function RelevamientosPendientesClient() {
       )
       if (!data?.ok) throw new Error(data?.error || 'No se pudo rechazar')
       setActionMsg('Relevamiento rechazado. Ya no aparece en pendientes.')
+      setRejectOpen(false)
+      setRejectMotivo('')
       setManualSelected(null)
       adjuntosLoadedForRef.current = null
       if (activoQuery) {
@@ -389,7 +401,10 @@ export function RelevamientosPendientesClient() {
       }
       await load()
     } catch (e) {
-      setActionErr(e instanceof Error ? e.message : String(e))
+      const msg = e instanceof Error ? e.message : String(e)
+      setRejectErr(msg)
+      setActionErr(msg)
+      throw e instanceof Error ? e : new Error(msg)
     } finally {
       busyRef.current = false
       setBusy(false)
@@ -489,7 +504,11 @@ export function RelevamientosPendientesClient() {
               type="button"
               className={COORD_BTN_SECONDARY}
               disabled={busy}
-              onClick={() => void rechazar()}
+              onClick={() => {
+                setRejectErr(null)
+                setRejectMotivo('')
+                setRejectOpen(true)
+              }}
             >
               Rechazar
             </button>
@@ -497,9 +516,11 @@ export function RelevamientosPendientesClient() {
               type="button"
               className={COORD_BTN_PRIMARY}
               disabled={busy}
-              onClick={() => void aprobar()}
+              onClick={() => setConfirmAprobarOpen(true)}
             >
-              {busy ? 'Procesando…' : 'Aprobar relevamiento'}
+              {editForm?.es_conjunto
+                ? 'Aprobar conjunto'
+                : 'Aprobar relevamiento'}
             </button>
           </div>
         }
@@ -586,11 +607,11 @@ export function RelevamientosPendientesClient() {
                 }
               >
                 <option value="individual">Activo individual</option>
-                <option value="manifold">Manifold / conjunto</option>
+                <option value="manifold">Conjunto</option>
               </select>
               <span className="mt-1 block text-xs font-normal normal-case text-slate-400">
-                Un manifold puede aprobarse sin componentes; se arman después en
-                Inventario → Manifolds.
+                Un conjunto puede aprobarse sin componentes; se arman después en
+                Inventario → Conjuntos.
               </span>
             </label>
 
@@ -790,6 +811,86 @@ export function RelevamientosPendientesClient() {
           </div>
         </div>
       ) : null}
+
+      <ConfirmDialog
+        open={confirmAprobarOpen && !!selected && !!editForm}
+        title={
+          editForm?.es_conjunto
+            ? 'Aprobar conjunto'
+            : 'Aprobar relevamiento'
+        }
+        description={
+          editForm?.es_conjunto
+            ? 'Se habilitará este conjunto en el inventario operativo. Los adjuntos quedan vinculados al mismo registro.'
+            : 'Se habilitará este relevamiento en el inventario operativo.'
+        }
+        confirmLabel={
+          editForm?.es_conjunto ? 'Aprobar conjunto' : 'Aprobar relevamiento'
+        }
+        onCancel={() => {
+          if (!busy) setConfirmAprobarOpen(false)
+        }}
+        onConfirm={ejecutarAprobar}
+      >
+        {selected && editForm ? (
+          <div className="rounded-xl border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
+            <div className="font-semibold">
+              {editForm.descripcion.trim() || 'Sin descripción'}
+            </div>
+            <div className="mt-1 text-slate-400">
+              Código interno: {displayCodigoInterno(editForm.codigo_interno)}
+            </div>
+            <div className="text-slate-400">
+              Serie: {editForm.numero_serie.trim() || '—'}
+            </div>
+          </div>
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={rejectOpen && !!selected}
+        title="Rechazar relevamiento"
+        description="El activo no se eliminará; solo saldrá de la cola de pendientes."
+        confirmLabel="Confirmar rechazo"
+        destructive
+        error={rejectErr}
+        onCancel={() => {
+          if (!busy) {
+            setRejectOpen(false)
+            setRejectMotivo('')
+            setRejectErr(null)
+          }
+        }}
+        onConfirm={ejecutarRechazar}
+      >
+        {selected ? (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-slate-700 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
+              <div className="font-semibold">
+                {editForm?.descripcion.trim() ||
+                  selected.descripcion ||
+                  'Sin descripción'}
+              </div>
+              <div className="mt-1 text-slate-400">
+                Código interno:{' '}
+                {displayCodigoInterno(
+                  editForm?.codigo_interno ?? selected.codigo_interno,
+                )}
+              </div>
+            </div>
+            <label className={COORD_LABEL}>
+              Motivo del rechazo *
+              <textarea
+                className={`${COORD_INPUT_LG} mt-1 min-h-[88px] normal-case`}
+                rows={3}
+                value={rejectMotivo}
+                disabled={busy}
+                onChange={(e) => setRejectMotivo(e.target.value)}
+              />
+            </label>
+          </div>
+        ) : null}
+      </ConfirmDialog>
     </div>
   )
 }
