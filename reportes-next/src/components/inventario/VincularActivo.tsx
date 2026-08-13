@@ -459,13 +459,16 @@ function VincularActivoModalInner({
   const excludeIdsRef = React.useRef(excludeActivoIds)
   const excludeSeriesRef = React.useRef(excludeSeries)
   const searchGenRef = React.useRef(0)
-  excludeIdsRef.current = excludeActivoIds
-  excludeSeriesRef.current = excludeSeries
 
   const handleClose = React.useCallback(() => {
     if (savingRef.current) return
     onClose()
   }, [onClose])
+
+  React.useEffect(() => {
+    excludeIdsRef.current = excludeActivoIds
+    excludeSeriesRef.current = excludeSeries
+  }, [excludeActivoIds, excludeSeries])
 
   React.useEffect(() => {
     let cancelled = false
@@ -501,18 +504,16 @@ function VincularActivoModalInner({
   React.useEffect(() => {
     const query = String(serie || '').trim()
     if (query.length < MIN_QUERY_CHARS || catalog == null) {
-      if (query.length < MIN_QUERY_CHARS) {
-        setCandidates([])
-        setSelectedId(null)
-      }
-      setBuscando(false)
+      // Invalidar búsquedas en vuelo; el clear de UI se hace en onChange (no setState sync aquí).
+      searchGenRef.current += 1
       return
     }
 
     const gen = ++searchGenRef.current
-    setBuscando(true)
     const t = window.setTimeout(() => {
       void (async () => {
+        if (gen !== searchGenRef.current) return
+        setBuscando(true)
         const result = await lookupActivoParaVincular({
           serie: query,
           catalog,
@@ -541,7 +542,6 @@ function VincularActivoModalInner({
       window.clearTimeout(t)
     }
   }, [serie, catalog, conjunto?.id, conjunto?.numero_serie, conjuntoSerie])
-
   const selected = candidates.find((c) => String(c.activo.id) === selectedId)
 
   async function buscar(serieOverride?: string) {
@@ -772,7 +772,13 @@ function VincularActivoModalInner({
                 spellCheck={false}
                 placeholder="Ej. K-M001-001"
                 onChange={(e) => {
-                  setSerie(e.target.value)
+                  const next = e.target.value
+                  setSerie(next)
+                  if (String(next).trim().length < MIN_QUERY_CHARS) {
+                    setCandidates([])
+                    setSelectedId(null)
+                    setBuscando(false)
+                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
