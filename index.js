@@ -1046,24 +1046,37 @@ async function registrarMovimiento({
         font-size: 10px;
       }
 
-      .wika-box {
-    border: 1px solid #000;
-    padding: 8px;
-    margin-top: 10px;
-    min-height: 420px;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
+      /* Título + gráfico WIKA: una sola unidad de salto (nunca título huérfano). */
+      .wika-section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
 
-  .wika-box img {
-    width: 100%;
-    max-height: 400px;
-    object-fit: contain;
-    display: block;
-  }
+      .wika-section .section-title {
+        margin-top: 10px;
+      }
+
+      .wika-box {
+        border: 1px solid #000;
+        padding: 8px;
+        margin-top: 0;
+      }
+
+      .wika-box img {
+        width: auto;
+        max-width: 100%;
+        height: auto;
+        max-height: 380px;
+        object-fit: contain;
+        object-position: top center;
+        display: block;
+        margin: 0 auto;
+      }
 
   .photo-section {
     margin-top: 10px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   .photo-grid {
@@ -1335,6 +1348,7 @@ async function registrarMovimiento({
       <div class="section-title">Observaciones</div>
       <div class="obs-box">${data.observaciones || ''}</div>
 
+      <div class="wika-section">
       <div class="section-title">Registro WIKA</div>
       <div class="wika-box">
         ${
@@ -1342,6 +1356,7 @@ async function registrarMovimiento({
             ? `<img src="${wikaImageUrl}" alt="Gráfico WIKA" />`
             : `<div class="muted-empty">Sin gráfico WIKA cargado</div>`
         }
+      </div>
       </div>
 
       <div class="photo-section">
