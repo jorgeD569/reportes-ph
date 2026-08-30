@@ -30,6 +30,7 @@
   const {
     registerBusquedaGlobalRoutes,
   } = require('./busquedaGlobal')
+  const { createPanolRouter } = require('./panol/panolRouter')
 
   // Obligatorio: sin secreto no hay sesión firmada segura.
   const APP_SESSION_SECRET = requireSessionSecretFromEnv()
@@ -1696,6 +1697,9 @@ registerBusquedaGlobalRoutes({
   supabase,
   buildPublicPdfUrl: buildParteOperativoPdfUrl,
 })
+
+// Pañol: módulo aislado; toda escritura documental usa la RPC transaccional.
+app.use('/api/panol', createPanolRouter({ supabase, auth }))
 
 // =========================
 // ACTIVOS - EDITAR
