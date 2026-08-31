@@ -296,6 +296,36 @@ function decodeUploadPayload(raw) {
   return { kind, metadata: { ...metadata, hash_sha256: calculatedHash }, buffer }
 }
 
+function validateLocationFilters(raw = {}) {
+  const allowed = new Set(['limit', 'offset', 'activo', 'sector_id', 'q'])
+  for (const key of Object.keys(raw || {})) {
+    if (!allowed.has(key)) {
+      throw new PanolValidationError(`Filtro de ubicaciones no permitido: ${key}`, 'INVALID_LOCATION_FILTER')
+    }
+  }
+  const filters = {
+    limit: raw.limit,
+    offset: raw.offset,
+    activo: true,
+  }
+  if (raw.sector_id != null && raw.sector_id !== '') {
+    filters.sector_id = requiredUuid(raw.sector_id, 'sector_id')
+  }
+  if (raw.activo != null && raw.activo !== '') {
+    const active = String(raw.activo).trim().toLowerCase()
+    if (active === 'true' || active === '1') filters.activo = true
+    else if (active === 'false' || active === '0') filters.activo = false
+    else if (active === 'all' || active === 'todas') delete filters.activo
+    else throw new PanolValidationError('activo debe ser true, false o all', 'INVALID_ACTIVE_FILTER')
+  }
+  if (raw.q != null && raw.q !== '') {
+    const search = String(raw.q).trim()
+    if (search.length > 200) throw new PanolValidationError('q supera 200 caracteres', 'TEXT_TOO_LONG')
+    if (search) filters.q = search
+  }
+  return filters
+}
+
 module.exports = {
   PanolValidationError,
   PanolAuthorizationError,
@@ -307,4 +337,5 @@ module.exports = {
   MAX_PHOTOS_PER_LINE,
   PHOTO_MAX_BYTES,
   SIGNATURE_MAX_BYTES,
+  validateLocationFilters,
 }

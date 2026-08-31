@@ -13,6 +13,7 @@ const CLIENT_ID = '22222222-2222-4222-8222-222222222222'
 const ELEMENT_ID = '33333333-3333-4333-8333-333333333333'
 const LOCATION_ID = '55555555-5555-4555-8555-555555555555'
 const CUSTODY_ID = '66666666-6666-4666-8666-666666666666'
+const SECTOR_ID = '88888888-8888-4888-8888-888888888888'
 
 function basePayload(overrides = {}) {
   return {
@@ -51,6 +52,7 @@ function createService(overrides = {}) {
     listDocuments: empty,
     getDocument: async () => null,
     listCustodies: empty,
+    listLocations: empty,
     listShipments: empty,
     registerDocument: async (payload) => ({ id: 'doc-1', idempotent: false, payload }),
     uploadPrivateFile: async () => ({ idempotent: false }),
@@ -284,4 +286,88 @@ test('upload admite WebP válido y conserva extensión segura generada', async (
     assert.equal(response.body.archivo.ruta, `${CLIENT_ID}.webp`)
     assert.equal(response.body.archivo.filename, undefined)
   })
+})
+
+test('ubicaciones exige sesion y permite los cuatro roles de Panol', async () => {
+  await withServer(createService(), async (port) => {
+    const missing = await requestJson(port, 'GET', '/api/panol/ubicaciones')
+    assert.equal(missing.status, 401)
+    const forbidden = await requestJson(port, 'GET', '/api/panol/ubicaciones', { token: 'forbidden' })
+    assert.equal(forbidden.status, 403)
+    for (const role of ['operador', 'supervisor', 'coordinador', 'admin']) {
+      const response = await requestJson(port, 'GET', '/api/panol/ubicaciones', { token: role })
+      assert.equal(response.status, 200)
+      assert.deepEqual(response.body.items, [])
+    }
+  })
+})
+
+test('ubicaciones valida paginacion y filtros antes de consultar', async () => {
+  const received = []
+  await withServer(createService({
+    async listLocations(filters) {
+      received.push(filters)
+      return { items: [], total: 0, limit: 25, offset: 50 }
+    },
+  }), async (port) => {
+    const response = await requestJson(port, 'GET', `/api/panol/ubicaciones?limit=25&offset=50&activo=false&sector_id=${SECTOR_ID}&q=Estante`, { token: 'operador' })
+    assert.equal(response.status, 200)
+    assert.deepEqual(received, [{ limit: '25', offset: '50', activo: false, sector_id: SECTOR_ID, q: 'Estante' }])
+  })
+})
+
+test('ubicaciones rechaza filtros invalidos y traduce errores', async () => {
+  let calls = 0
+  await withServer(createService({ listLocations: async () => { calls += 1; throw new Error('db unavailable') } }), async (port) => {
+    for (const [query, code] of [
+      ['activo=quizas', 'INVALID_ACTIVE_FILTER'],
+      ['sector_id=no-uuid', 'INVALID_UUID'],
+      ['orden=drop', 'INVALID_LOCATION_FILTER'],
+    ]) {
+      const response = await requestJson(port, 'GET', `/api/panol/ubicaciones?${query}`, { token: 'operador' })
+      assert.equal(response.status, 400)
+      assert.equal(response.body.code, code)
+    }
+    assert.equal(calls, 0)
+    const failure = await requestJson(port, 'GET', '/api/panol/ubicaciones', { token: 'operador' })
+    assert.equal(failure.status, 500)
+    assert.equal(failure.body.code, 'PANOL_INTERNAL_ERROR')
+    assert.equal(calls, 1)
+  })
+})
+
+test('servicio de ubicaciones pagina, filtra y expone sector descriptivo', async () => {
+  const calls = []
+  const result = {
+    data: [{
+      id: LOCATION_ID, sector_id: SECTOR_ID, etiqueta: 'Estante A',
+      contenedor: 'Deposito', estanteria: 'A', gaveta: '3', activo: false,
+      sector: { id: SECTOR_ID, codigo: 'SE', nombre: 'Servicios Especiales', activo: true },
+    }], count: 1, error: null,
+  }
+  const query = {
+    select(fields, options) { calls.push(['select', fields, options]); return this },
+    order(field, options) { calls.push(['order', field, options]); return this },
+    range(from, to) { calls.push(['range', from, to]); return this },
+    eq(field, value) { calls.push(['eq', field, value]); return this },
+    ilike(field, value) { calls.push(['ilike', field, value]); return this },
+    then(resolve, reject) { return Promise.resolve(result).then(resolve, reject) },
+  }
+  const supabase = {
+    from(table) { assert.equal(table, 'panol_ubicaciones'); return query },
+    async rpc() { return { data: null, error: null } },
+  }
+  const response = await createPanolService({ supabase, env: {} }).listLocations({ limit: 10, offset: 20, activo: false, sector_id: SECTOR_ID, q: 'Estante' })
+  assert.deepEqual(response, {
+    items: [{
+      id: LOCATION_ID, sector_id: SECTOR_ID, etiqueta: 'Estante A',
+      contenedor: 'Deposito', estanteria: 'A', gaveta: '3', activo: false,
+      sector_codigo: 'SE', sector_nombre: 'Servicios Especiales', sector_activo: true,
+    }], total: 1, limit: 10, offset: 20,
+  })
+  assert.ok(calls.some((call) => call[0] === 'range' && call[1] === 20 && call[2] === 29))
+  assert.ok(calls.some((call) => call[0] === 'eq' && call[1] === 'activo' && call[2] === false))
+  assert.ok(calls.some((call) => call[0] === 'eq' && call[1] === 'sector_id' && call[2] === SECTOR_ID))
+  assert.ok(calls.some((call) => call[0] === 'ilike' && call[1] === 'etiqueta'))
+  assert.match(calls.find((call) => call[0] === 'select')[1], /sector:panol_sectores\(id,codigo,nombre,activo\)/)
 })

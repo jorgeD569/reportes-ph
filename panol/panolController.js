@@ -3,6 +3,7 @@ const {
   validateDocumentPayload,
   decodeUploadPayload,
   requiredUuid,
+  validateLocationFilters,
 } = require('./panolValidation')
 
 function mapPanolError(error) {
@@ -88,11 +89,19 @@ function createPanolController({ service }) {
     } catch (error) { return sendError(res, error) }
   }
 
+  async function listLocations(req, res) {
+    try {
+      const filters = validateLocationFilters(req.query || {})
+      return res.json({ ok: true, ...(await service.listLocations(filters)) })
+    } catch (error) { return sendError(res, error) }
+  }
+
   return {
     listCatalog: list('listCatalog'), catalogItem,
     listBalances: list('listBalances'), listDocuments: list('listDocuments'),
     documentDetail, listCustodies: list('listCustodies'),
     listShipments: list('listShipments'), register, upload, signedUrl,
+    listLocations,
   }
 }
 

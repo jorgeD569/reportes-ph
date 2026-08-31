@@ -111,6 +111,33 @@ function createPanolService({ supabase, env = process.env }) {
     return { items: result.data || [], total: result.count || 0, limit, offset }
   }
 
+  async function listLocations(filters = {}) {
+    const limit = clampLimit(filters.limit)
+    const offset = parseOffset(filters.offset)
+    let query = supabase.from('panol_ubicaciones')
+      .select('id,sector_id,etiqueta,contenedor,estanteria,gaveta,activo,sector:panol_sectores(id,codigo,nombre,activo)', { count: 'exact' })
+      .order('etiqueta', { ascending: true })
+      .range(offset, offset + limit - 1)
+    if (typeof filters.activo === 'boolean') query = query.eq('activo', filters.activo)
+    if (filters.sector_id) query = query.eq('sector_id', filters.sector_id)
+    if (filters.q) query = query.ilike('etiqueta', `%${filters.q}%`)
+    const result = await query
+    if (result.error) throw result.error
+    const items = (result.data || []).map((row) => ({
+      id: row.id,
+      sector_id: row.sector_id,
+      etiqueta: row.etiqueta,
+      contenedor: row.contenedor,
+      estanteria: row.estanteria,
+      gaveta: row.gaveta,
+      activo: row.activo,
+      sector_codigo: row.sector && row.sector.codigo || null,
+      sector_nombre: row.sector && row.sector.nombre || null,
+      sector_activo: row.sector ? row.sector.activo : null,
+    }))
+    return { items, total: result.count || 0, limit, offset }
+  }
+
   async function getDocument(id) {
     const document = throwIfError(await supabase.from('panol_documentos').select('*').eq('id', id).maybeSingle())
     if (!document) return null
@@ -201,6 +228,7 @@ function createPanolService({ supabase, env = process.env }) {
     getElement,
     listBalances,
     listDocuments,
+    listLocations,
     getDocument,
     listCustodies: (filters) => listTable('panol_custodias', filters, ['estado', 'elemento_id', 'responsable_user_id', 'documento_origen_id']),
     listShipments: (filters) => listTable('panol_envios', filters, ['estado', 'documento_env_id', 'receptor_previsto_user_id']),
