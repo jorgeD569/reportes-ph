@@ -96,12 +96,18 @@ function createPanolController({ service }) {
     } catch (error) { return sendError(res, error) }
   }
 
+  async function listParticipants(req, res) {
+    try { return res.json({ ok: true, ...(await service.listParticipants(req.query || {})) }) }
+    catch (error) { return sendError(res, error) }
+  }
+
   return {
     listCatalog: list('listCatalog'), catalogItem,
     listBalances: list('listBalances'), listDocuments: list('listDocuments'),
     documentDetail, listCustodies: list('listCustodies'),
     listShipments: list('listShipments'), register, upload, signedUrl,
     listLocations,
+    listParticipants,
   }
 }
 

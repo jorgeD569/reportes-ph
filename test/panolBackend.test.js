@@ -53,6 +53,7 @@ function createService(overrides = {}) {
     getDocument: async () => null,
     listCustodies: empty,
     listLocations: empty,
+    listParticipants: async () => ({ participantes: [], total: 0, limit: 50, offset: 0 }),
     listShipments: empty,
     registerDocument: async (payload) => ({ id: 'doc-1', idempotent: false, payload }),
     uploadPrivateFile: async () => ({ idempotent: false }),
@@ -370,4 +371,72 @@ test('servicio de ubicaciones pagina, filtra y expone sector descriptivo', async
   assert.ok(calls.some((call) => call[0] === 'eq' && call[1] === 'sector_id' && call[2] === SECTOR_ID))
   assert.ok(calls.some((call) => call[0] === 'ilike' && call[1] === 'etiqueta'))
   assert.match(calls.find((call) => call[0] === 'select')[1], /sector:panol_sectores\(id,codigo,nombre,activo\)/)
+})
+
+test('participantes exige sesion y permite los cuatro roles Panol', async () => {
+  const seen = []
+  await withServer(createService({
+    async listParticipants(filters) {
+      seen.push(filters)
+      return { participantes: [], total: 0, limit: 10, offset: 0 }
+    },
+  }), async (port) => {
+    assert.equal((await requestJson(port, 'GET', '/api/panol/participantes')).status, 401)
+    assert.equal((await requestJson(port, 'GET', '/api/panol/participantes', { token: 'forbidden' })).status, 403)
+    for (const role of ['operador', 'supervisor', 'coordinador', 'admin']) {
+      const response = await requestJson(port, 'GET', '/api/panol/participantes?limit=10', { token: role })
+      assert.equal(response.status, 200)
+      assert.deepEqual(response.body.participantes, [])
+    }
+  })
+  assert.equal(seen.length, 4)
+})
+
+test('participantes normaliza, filtra y no expone campos sensibles ni escribe', async () => {
+  const calls = []
+  function queryFor(table) {
+    const result = table === 'usuarios_app'
+      ? { data: [{ id: AUTH_ID, nombre: 'Ana Interna', usuario: 'ana', rol: 'operador', activo: true, email: 'no@exponer', password_hash: 'secreto' }], count: 1, error: null }
+      : { data: [{ id: CLIENT_ID, nombre_visible: 'Bruno Externo', dni: '123', tipo_contacto: 'receptor', activo: true, clave_normalizada: 'no-exponer' }], count: 1, error: null }
+    const query = {
+      select(fields) { calls.push([table, 'select', fields]); return query },
+      is(field, value) { calls.push([table, 'is', field, value]); return query },
+      eq(field, value) { calls.push([table, 'eq', field, value]); return query },
+      order(field) { calls.push([table, 'order', field]); return query },
+      range(from, to) { calls.push([table, 'range', from, to]); return query },
+      or(expression) { calls.push([table, 'or', expression]); return query },
+      then(resolve) { return Promise.resolve(result).then(resolve) },
+    }
+    return query
+  }
+  const service = createPanolService({
+    supabase: {
+      from(table) { calls.push([table, 'from']); return queryFor(table) },
+      rpc() { throw new Error('no debe escribir por RPC') },
+    },
+    env: {},
+  })
+  const result = await service.listParticipants({ q: 'Ana,()', activo: 'true', limit: '2', offset: '0' })
+  assert.equal(result.limit, 2)
+  assert.equal(result.total, 2)
+  assert.deepEqual(result.participantes, [
+    { id: AUTH_ID, tipo_identidad: 'usuario_interno', nombre: 'Ana Interna', dni: null, usuario: 'ana', rol: 'operador', tipo_contacto: null, activo: true },
+    { id: CLIENT_ID, tipo_identidad: 'contacto_externo', nombre: 'Bruno Externo', dni: '123', usuario: null, rol: null, tipo_contacto: 'receptor', activo: true },
+  ])
+  const serialized = JSON.stringify(result)
+  assert.equal(serialized.includes('password_hash'), false)
+  assert.equal(serialized.includes('email'), false)
+  assert.equal(serialized.includes('clave_normalizada'), false)
+  assert.ok(calls.some((entry) => entry[1] === 'or' && entry[2].includes('Ana')))
+  assert.ok(calls.some((entry) => entry[1] === 'eq' && entry[2] === 'activo' && entry[3] === true))
+  assert.ok(calls.every((entry) => !['insert', 'update', 'delete', 'upsert'].includes(entry[1])))
+})
+
+test('participantes valida activo y limita paginacion', async () => {
+  const service = createPanolService({
+    supabase: { from() { throw new Error('no debe consultar con filtro invalido') }, rpc() {} },
+    env: {},
+  })
+  await assert.rejects(service.listParticipants({ activo: 'all' }), /true o false/)
+  assert.equal(require('../panol/panolService').clampLimit(9999), 200)
 })

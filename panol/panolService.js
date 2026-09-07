@@ -20,6 +20,37 @@ function throwIfError(result) {
   return result ? result.data : null
 }
 
+function parseActive(value) {
+  if (value == null || value === '') return true
+  const normalized = String(value).trim().toLowerCase()
+  if (normalized === 'true') return true
+  if (normalized === 'false') return false
+  const error = new Error('activo debe ser true o false')
+  error.code = 'PANOL_INVALID_FILTER'
+  error.httpStatus = 400
+  throw error
+}
+
+function safeSearch(value) {
+  return String(value || '').trim().replace(/[,%()]/g, ' ').slice(0, 200).trim()
+}
+
+function normalizeInternalUser(row) {
+  return {
+    id: row.id, tipo_identidad: 'usuario_interno', nombre: row.nombre,
+    dni: null, usuario: row.usuario || null, rol: row.rol || null,
+    tipo_contacto: null, activo: row.activo === true,
+  }
+}
+
+function normalizeExternalContact(row) {
+  return {
+    id: row.id, tipo_identidad: 'contacto_externo', nombre: row.nombre_visible,
+    dni: row.dni || null, usuario: null, rol: null,
+    tipo_contacto: row.tipo_contacto || null, activo: row.activo === true,
+  }
+}
+
 function createPanolService({ supabase, env = process.env }) {
   if (!supabase || typeof supabase.from !== 'function' || typeof supabase.rpc !== 'function') {
     throw new Error('createPanolService requiere un cliente Supabase service_role')
@@ -138,6 +169,34 @@ function createPanolService({ supabase, env = process.env }) {
     return { items, total: result.count || 0, limit, offset }
   }
 
+  async function listParticipants(filters = {}) {
+    const limit = clampLimit(filters.limit)
+    const offset = parseOffset(filters.offset)
+    const active = parseActive(filters.activo)
+    const search = safeSearch(filters.q)
+    const fetchEnd = offset + limit - 1
+    let usersQuery = supabase.from('usuarios_app')
+      .select('id,nombre,usuario,rol,activo', { count: 'exact' })
+      .is('deleted_at', null).eq('activo', active)
+      .order('nombre', { ascending: true }).range(0, fetchEnd)
+    let contactsQuery = supabase.from('panol_contactos')
+      .select('id,nombre_visible,dni,tipo_contacto,activo', { count: 'exact' })
+      .eq('activo', active).order('nombre_visible', { ascending: true }).range(0, fetchEnd)
+    if (search) {
+      usersQuery = usersQuery.or(`nombre.ilike.%${search}%,usuario.ilike.%${search}%`)
+      contactsQuery = contactsQuery.or(`nombre_visible.ilike.%${search}%,dni.ilike.%${search}%`)
+    }
+    const [users, contacts] = await Promise.all([usersQuery, contactsQuery])
+    if (users.error) throw users.error
+    if (contacts.error) throw contacts.error
+    const participants = [
+      ...(users.data || []).map(normalizeInternalUser),
+      ...(contacts.data || []).map(normalizeExternalContact),
+    ].sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || ''), 'es', { sensitivity: 'base' }))
+      .slice(offset, offset + limit)
+    return { participantes: participants, total: Number(users.count || 0) + Number(contacts.count || 0), limit, offset }
+  }
+
   async function getDocument(id) {
     const document = throwIfError(await supabase.from('panol_documentos').select('*').eq('id', id).maybeSingle())
     if (!document) return null
@@ -229,6 +288,7 @@ function createPanolService({ supabase, env = process.env }) {
     listBalances,
     listDocuments,
     listLocations,
+    listParticipants,
     getDocument,
     listCustodies: (filters) => listTable('panol_custodias', filters, ['estado', 'elemento_id', 'responsable_user_id', 'documento_origen_id']),
     listShipments: (filters) => listTable('panol_envios', filters, ['estado', 'documento_env_id', 'receptor_previsto_user_id']),
@@ -240,4 +300,4 @@ function createPanolService({ supabase, env = process.env }) {
   }
 }
 
-module.exports = { createPanolService, clampLimit, parseOffset }
+module.exports = { createPanolService, clampLimit, parseOffset, parseActive, normalizeInternalUser, normalizeExternalContact }
