@@ -240,6 +240,12 @@ function createPanolService({ supabase, env = process.env }) {
     return result.data
   }
 
+  async function registerAssetAdmission(payload) {
+    const result = await supabase.rpc('panol_fn_ingresar_activo', { p: payload })
+    if (result.error) throw result.error
+    return result.data
+  }
+
   async function uploadPrivateFile({ kind, metadata, buffer, authUser }) {
     const bucket = buckets[kind]
     const extension = metadata.mime_type === 'image/png' ? 'png' : metadata.mime_type === 'image/webp' ? 'webp' : 'jpg'
@@ -293,6 +299,7 @@ function createPanolService({ supabase, env = process.env }) {
     listCustodies: (filters) => listTable('panol_custodias', filters, ['estado', 'elemento_id', 'responsable_user_id', 'documento_origen_id']),
     listShipments: (filters) => listTable('panol_envios', filters, ['estado', 'documento_env_id', 'receptor_previsto_user_id']),
     registerDocument,
+    registerAssetAdmission,
     uploadPrivateFile,
     createSignedUrl,
     createSignedUrlForFile,

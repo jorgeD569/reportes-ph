@@ -14,6 +14,7 @@ const ELEMENT_ID = '33333333-3333-4333-8333-333333333333'
 const LOCATION_ID = '55555555-5555-4555-8555-555555555555'
 const CUSTODY_ID = '66666666-6666-4666-8666-666666666666'
 const SECTOR_ID = '88888888-8888-4888-8888-888888888888'
+const ACTIVO_ID = '123'
 
 function basePayload(overrides = {}) {
   return {
@@ -23,6 +24,19 @@ function basePayload(overrides = {}) {
     registrado_por_user_id: '99999999-9999-4999-8999-999999999999',
     participantes: [],
     lineas: [{ elemento_id: ELEMENT_ID, ubicacion_id: LOCATION_ID, cantidad: 1, accion: 'ingreso', evidencias: [] }],
+    ...overrides,
+  }
+}
+
+function assetAdmissionPayload(overrides = {}) {
+  return {
+    client_uuid: CLIENT_ID,
+    activo_id: ACTIVO_ID,
+    ubicacion_id: LOCATION_ID,
+    registrado_por_user_id: '99999999-9999-4999-8999-999999999999',
+    origen_creacion: 'flutter',
+    origen_texto: 'Depósito externo',
+    observaciones: 'Ingreso inicial',
     ...overrides,
   }
 }
@@ -56,6 +70,7 @@ function createService(overrides = {}) {
     listParticipants: async () => ({ participantes: [], total: 0, limit: 50, offset: 0 }),
     listShipments: empty,
     registerDocument: async (payload) => ({ id: 'doc-1', idempotent: false, payload }),
+    registerAssetAdmission: async (payload) => ({ id: 'doc-ing-1', idempotent: false, payload }),
     uploadPrivateFile: async () => ({ idempotent: false }),
     createSignedUrl: async () => ({ url: 'https://signed.invalid', expires_in: 900 }),
     ...overrides,
@@ -371,6 +386,106 @@ test('servicio de ubicaciones pagina, filtra y expone sector descriptivo', async
   assert.ok(calls.some((call) => call[0] === 'eq' && call[1] === 'sector_id' && call[2] === SECTOR_ID))
   assert.ok(calls.some((call) => call[0] === 'ilike' && call[1] === 'etiqueta'))
   assert.match(calls.find((call) => call[0] === 'select')[1], /sector:panol_sectores\(id,codigo,nombre,activo\)/)
+})
+
+test('ingreso de Activo exige sesión y rol Pañol permitido', async () => {
+  await withServer(createService(), async (port) => {
+    const missing = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { body: assetAdmissionPayload() })
+    assert.equal(missing.status, 401)
+    assert.equal(missing.body.code, 'SESSION_REQUIRED')
+    const forbidden = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { token: 'forbidden', body: assetAdmissionPayload() })
+    assert.equal(forbidden.status, 403)
+    assert.equal(forbidden.body.code, 'FORBIDDEN_ROLE')
+  })
+})
+
+test('ingreso válido usa registrador de sesión y contrato canónico', async () => {
+  let received
+  await withServer(createService({
+    async registerAssetAdmission(payload) {
+      received = payload
+      return { id: 'doc-ing-1', numero: 'ING-SE-2026-000001', idempotent: false, activo_id: payload.activo_id, elemento_id: ELEMENT_ID, unidad_id: '77777777-7777-4777-8777-777777777777', ubicacion_id: payload.ubicacion_id }
+    },
+  }), async (port) => {
+    const response = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { token: 'operador', body: assetAdmissionPayload({ campo_no_canonico: 'ignorar' }) })
+    assert.equal(response.status, 201)
+    assert.equal(response.body.ok, true)
+    assert.equal(response.body.ingreso.activo_id, ACTIVO_ID)
+    assert.equal(received.registrado_por_user_id, AUTH_ID)
+    assert.equal(received.campo_no_canonico, undefined)
+    assert.equal(received.service_role, undefined)
+  })
+})
+
+test('ingreso valida client_uuid, activo_id y ubicacion_id antes del servicio', async () => {
+  let calls = 0
+  await withServer(createService({ registerAssetAdmission: async () => { calls += 1 } }), async (port) => {
+    for (const [body, code] of [
+      [assetAdmissionPayload({ client_uuid: undefined }), 'INVALID_UUID'],
+      [assetAdmissionPayload({ activo_id: 'abc' }), 'INVALID_BIGINT'],
+      [assetAdmissionPayload({ ubicacion_id: 'ubicacion-demo' }), 'INVALID_UUID'],
+    ]) {
+      const response = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { token: 'operador', body })
+      assert.equal(response.status, 400)
+      assert.equal(response.body.code, code)
+    }
+    assert.equal(calls, 0)
+  })
+})
+
+test('ingreso mapea errores de dominio de la RPC a HTTP claro', async () => {
+  for (const [message, status, code] of [
+    ['Activo inexistente', 404, 'PANOL_ACTIVO_NOT_FOUND'],
+    ['El Activo debe tener número de serie', 400, 'PANOL_SERIAL_REQUIRED'],
+    ['Ubicación Pañol inexistente o inactiva', 404, 'PANOL_LOCATION_NOT_FOUND'],
+    ['client_uuid reutilizado con payload diferente', 409, 'PANOL_CONFLICT'],
+    ['El Activo ya fue ingresado al Pañol', 409, 'PANOL_ALREADY_ADMITTED'],
+  ]) {
+    await withServer(createService({ async registerAssetAdmission() { throw Object.assign(new Error(message), { code: 'P0001' }) } }), async (port) => {
+      const response = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { token: 'supervisor', body: assetAdmissionPayload() })
+      assert.equal(response.status, status)
+      assert.equal(response.body.code, code)
+    })
+  }
+})
+
+test('retry de ingreso conserva client_uuid y responde estable', async () => {
+  const received = []
+  await withServer(createService({
+    async registerAssetAdmission(payload) {
+      received.push(payload)
+      return { id: 'doc-ing-1', numero: 'ING-SE-2026-000001', idempotent: received.length > 1 }
+    },
+  }), async (port) => {
+    const first = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { token: 'coordinador', body: assetAdmissionPayload() })
+    const retry = await requestJson(port, 'POST', '/api/panol/ingresos-activos', { token: 'coordinador', body: assetAdmissionPayload() })
+    assert.equal(first.status, 201)
+    assert.equal(retry.status, 200)
+    assert.equal(first.body.ingreso.id, retry.body.ingreso.id)
+    assert.deepEqual(received.map((item) => item.client_uuid), [CLIENT_ID, CLIENT_ID])
+  })
+})
+
+test('servicio de ingreso llama exclusivamente panol_fn_ingresar_activo', async () => {
+  const calls = []
+  const supabase = {
+    from() { throw new Error('no debe escribir tablas') },
+    async rpc(name, args) { calls.push({ name, args }); return { data: { id: 'doc-ing-1' }, error: null } },
+    storage: {},
+  }
+  const service = createPanolService({ supabase, env: {} })
+  const payload = assetAdmissionPayload({ registrado_por_user_id: AUTH_ID })
+  assert.deepEqual(await service.registerAssetAdmission(payload), { id: 'doc-ing-1' })
+  assert.deepEqual(calls, [{ name: 'panol_fn_ingresar_activo', args: { p: payload } }])
+  assert.equal(JSON.stringify(calls).includes('service_role'), false)
+})
+
+test('agregar ingreso no altera endpoints Pañol existentes', async () => {
+  await withServer(createService({ async listCatalog() { return { items: [{ id: ELEMENT_ID }], total: 1, limit: 50, offset: 0 } } }), async (port) => {
+    const response = await requestJson(port, 'GET', '/api/panol/catalogo', { token: 'admin' })
+    assert.equal(response.status, 200)
+    assert.deepEqual(response.body.items, [{ id: ELEMENT_ID }])
+  })
 })
 
 test('participantes exige sesion y permite los cuatro roles Panol', async () => {

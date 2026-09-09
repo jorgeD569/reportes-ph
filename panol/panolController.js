@@ -1,6 +1,7 @@
 const {
   PanolValidationError,
   validateDocumentPayload,
+  validateAssetAdmissionPayload,
   decodeUploadPayload,
   requiredUuid,
   validateLocationFilters,
@@ -17,7 +18,11 @@ function mapPanolError(error) {
   const message = String(error && (error.message || error.details || error.hint) || 'Error interno de Pañol')
   const lower = message.toLowerCase()
   if (code === '42501' || lower.includes('permission denied')) return { status: 403, code: 'PANOL_FORBIDDEN', message: 'Permiso insuficiente para Pañol' }
-  if (code === '23505' || lower.includes('payload distinto') || lower.includes('client_uuid') && lower.includes('distinto')) return { status: 409, code: 'PANOL_CONFLICT', message }
+  if (code === '23505' || lower.includes('payload distinto') || lower.includes('payload diferente') || lower.includes('client_uuid') && (lower.includes('distinto') || lower.includes('diferente'))) return { status: 409, code: 'PANOL_CONFLICT', message }
+  if (lower.includes('activo inexistente')) return { status: 404, code: 'PANOL_ACTIVO_NOT_FOUND', message }
+  if (lower.includes('ubicación pañol inexistente') || lower.includes('ubicacion panol inexistente')) return { status: 404, code: 'PANOL_LOCATION_NOT_FOUND', message }
+  if (lower.includes('debe tener número de serie') || lower.includes('debe tener numero de serie')) return { status: 400, code: 'PANOL_SERIAL_REQUIRED', message }
+  if (lower.includes('ya fue ingresado al pañol') || lower.includes('ya fue ingresado al panol')) return { status: 409, code: 'PANOL_ALREADY_ADMITTED', message }
   if (code === '23503' || lower.includes('no existe') || lower.includes('no encontrada') || lower.includes('no encontrado')) return { status: 404, code: 'PANOL_NOT_FOUND', message }
   if (code === '23514' || code === '22P02' || code === '22003' || code === 'P0001') {
     const conflict = lower.includes('insuficiente') || lower.includes('sobredevol') || lower.includes('cerrada') || lower.includes('ya ')
@@ -96,6 +101,17 @@ function createPanolController({ service }) {
     } catch (error) { return sendError(res, error) }
   }
 
+  async function registerAssetAdmission(req, res) {
+    try {
+      const payload = validateAssetAdmissionPayload(req.body, req.authUser)
+      const data = await service.registerAssetAdmission(payload)
+      return res.status(data && data.idempotent ? 200 : 201).json({
+        ok: true,
+        ingreso: data,
+      })
+    } catch (error) { return sendError(res, error) }
+  }
+
   async function listParticipants(req, res) {
     try { return res.json({ ok: true, ...(await service.listParticipants(req.query || {})) }) }
     catch (error) { return sendError(res, error) }
@@ -105,7 +121,8 @@ function createPanolController({ service }) {
     listCatalog: list('listCatalog'), catalogItem,
     listBalances: list('listBalances'), listDocuments: list('listDocuments'),
     documentDetail, listCustodies: list('listCustodies'),
-    listShipments: list('listShipments'), register, upload, signedUrl,
+    listShipments: list('listShipments'), register, registerAssetAdmission,
+    upload, signedUrl,
     listLocations,
     listParticipants,
   }

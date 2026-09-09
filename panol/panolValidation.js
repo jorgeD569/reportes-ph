@@ -268,6 +268,38 @@ function validateDocumentPayload(raw, authUser, forcedType = null) {
   return result
 }
 
+function validateAssetAdmissionPayload(raw, authUser) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new PanolValidationError('Payload de ingreso inválido', 'INVALID_ASSET_ADMISSION')
+  }
+  const origin = cleanText(raw.origen_creacion, 30, 'origen_creacion') || 'backend'
+  if (!CLIENT_ORIGINS.has(origin)) {
+    throw new PanolValidationError('origen_creacion inválido', 'INVALID_ORIGIN')
+  }
+  const result = {
+    client_uuid: requiredUuid(raw.client_uuid, 'client_uuid'),
+    activo_id: optionalBigint(raw.activo_id, 'activo_id'),
+    ubicacion_id: requiredUuid(raw.ubicacion_id, 'ubicacion_id'),
+    registrado_por_user_id: requiredUuid(authUser && authUser.id, 'sesión.usuario.id'),
+    origen_creacion: origin,
+  }
+  if (!result.activo_id) {
+    throw new PanolValidationError('activo_id es obligatorio', 'ACTIVO_ID_REQUIRED')
+  }
+  const effectiveAt = cleanText(raw.fecha_efectiva, 80, 'fecha_efectiva')
+  if (effectiveAt && Number.isNaN(Date.parse(effectiveAt))) {
+    throw new PanolValidationError('fecha_efectiva inválida', 'INVALID_EFFECTIVE_DATE')
+  }
+  const source = cleanText(raw.origen_texto, 500, 'origen_texto')
+  const notes = cleanText(raw.observaciones, 2000, 'observaciones')
+  const device = cleanText(raw.dispositivo_id, 200, 'dispositivo_id')
+  if (effectiveAt) result.fecha_efectiva = effectiveAt
+  if (source) result.origen_texto = source
+  if (notes) result.observaciones = notes
+  if (device) result.dispositivo_id = device
+  return result
+}
+
 function decodeUploadPayload(raw) {
   const kind = String(raw && raw.tipo_archivo || '').trim().toLowerCase()
   if (!['firma', 'foto'].includes(kind)) {
@@ -330,6 +362,7 @@ module.exports = {
   PanolValidationError,
   PanolAuthorizationError,
   validateDocumentPayload,
+  validateAssetAdmissionPayload,
   validateFileMetadata,
   decodeUploadPayload,
   requiredUuid,

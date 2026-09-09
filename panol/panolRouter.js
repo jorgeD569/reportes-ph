@@ -51,6 +51,7 @@ function createPanolRouter({ supabase, auth, service: injectedService }) {
   router.get('/archivos/:id/url-firmada', controller.signedUrl)
 
   router.post('/documentos', permit('operate'), controller.register())
+  router.post('/ingresos-activos', permit('operate'), controller.registerAssetAdmission)
   router.post('/recepciones', permit('operate'), controller.register('REC'))
   router.post('/transferencias', permit('operate'), controller.register('TRA'))
   router.post('/devoluciones', permit('operate'), controller.register('DEV'))
